@@ -96,9 +96,11 @@ flexdid <- function(formula,
   }
 
   # --- Pull required columns
-  tx_vec    <- as.integer(data[[tx]])
+  tx_raw <- data[[tx]]
   group_vec <- data[[group]]
   time_vec  <- data[[time]]
+
+  tx_vec <- coerce_tx(tx_raw, tx)
 
   if (anyNA(tx_vec[use]) || anyNA(group_vec[use]) || anyNA(time_vec[use])) {
     use <- use & !is.na(tx_vec) & !is.na(group_vec) & !is.na(time_vec)

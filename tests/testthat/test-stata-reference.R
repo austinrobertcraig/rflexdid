@@ -18,6 +18,19 @@ read_data <- function() {
     skip("hhabits.csv not present; run data-raw/make-stata-reference.do first.")
   }
   d <- read.csv(path, stringsAsFactors = FALSE)
+
+  # If the CSV was exported without `nolabel`, the labeled variables come
+  # through as character "Yes"/"No". Map back to integers so flexdid() can
+  # consume the data unchanged.
+  yesno <- function(z) {
+    if (is.character(z) && all(z[!is.na(z)] %in% c("Yes", "No"))) {
+      as.integer(z == "Yes")
+    } else z
+  }
+  for (nm in c("hhabit", "girl", "sports")) {
+    if (nm %in% names(d)) d[[nm]] <- yesno(d[[nm]])
+  }
+
   if (!"chrt" %in% names(d)) {
     d$chrt <- ave(ifelse(d$hhabit == 1, d$year, NA), d$schools,
                   FUN = function(z) suppressWarnings(min(z, na.rm = TRUE)))
@@ -43,34 +56,31 @@ test_that("lagsandleads coefficients match Stata reference (group=chrt, cluster=
   is_cell <- grepl("_Cohort#", ref$name)
   ref_cell <- ref[is_cell, , drop = FALSE]
   expect_gt(nrow(ref_cell), 0L)
-  # Mapping is not 1:1 in name string but is 1:1 in (cohort, group, year);
-  # do a robust match via parsing.
+  # Stata's interaction names look like:
+  #   "2034bn._Cohort#2034.chrt#2032b.year#1._Tx"
+  # The factor-modifier suffixes (`bn`, `b`, `o`) make a structured regex
+  # finicky; just pull the first three numeric tokens, which encode
+  # (cohort, group, year) in that order.
   parse_stata_cell <- function(nm) {
-    # e.g. "2033bn._Cohort#1.chrt#2030.year#1._Tx" -> list(cohort=2033, g=1, t=2030)
-    m <- regmatches(nm, regexec(
-      "([0-9]+)[a-z]*\\._Cohort#([0-9]+)\\.[A-Za-z]+#([0-9]+)\\.year",
-      nm
-    ))[[1]]
-    if (length(m) < 4L) return(c(NA, NA, NA))
-    as.numeric(m[c(2, 3, 4)])
+    nums <- regmatches(nm, gregexpr("[0-9]+", nm))[[1]]
+    if (length(nums) < 3L) return(c(NA, NA, NA))
+    as.numeric(nums[1:3])
   }
   ref_keys <- t(vapply(ref_cell$name, parse_stata_cell, numeric(3)))
-  fd_keys <- with(fit$design$cells, cbind(cohort_for_g = NA, g = g, t = t))
-  # cohort_for_g lookup
-  cohort_lookup <- tapply(d$chrt, d$schools, function(z) z[1])
-  fd_keys[, "cohort_for_g"] <- as.numeric(cohort_lookup[as.character(fit$design$cells$g)])
+  # In this spec group=chrt and cohort=chrt, so columns 1 (cohort) and 2 (group)
+  # are identical in the Stata names. Match on (group, year) which is what
+  # uniquely identifies a flexdid cell anyway.
+  ref_key_str <- paste(ref_keys[, 2], ref_keys[, 3], sep = "|")
+  fd_key_str  <- paste(fit$design$cells$g, fit$design$cells$t, sep = "|")
 
-  ref_key_str <- paste(ref_keys[, 1], ref_keys[, 2], ref_keys[, 3], sep = "|")
-  fd_key_str  <- paste(fd_keys[, "cohort_for_g"], fd_keys[, "g"], fd_keys[, "t"],
-                       sep = "|")
   m <- match(ref_key_str, fd_key_str)
   ok <- !is.na(m)
   expect_gt(sum(ok), 0L)
 
-  fd_b <- fit$coefficients[fit$design$cells$col_indicator[m[ok]]]
-  fd_se <- sqrt(diag(fit$vcov)[fit$design$cells$col_indicator[m[ok]]])
-  expect_equal(unname(fd_b), ref_cell$b[ok], tolerance = 1e-6)
-  expect_equal(unname(fd_se), ref_cell$se[ok], tolerance = 1e-5)
+  fd_b  <- unname(fit$coefficients[fit$design$cells$col_indicator[m[ok]]])
+  fd_se <- unname(sqrt(diag(fit$vcov)[fit$design$cells$col_indicator[m[ok]]]))
+  expect_equal(fd_b, ref_cell$b[ok], tolerance = 1e-6)
+  expect_equal(fd_se, ref_cell$se[ok], tolerance = 1e-5)
 })
 
 test_that("Overall ATET (lagsandleads) matches Stata reference", {
@@ -83,8 +93,8 @@ test_that("Overall ATET (lagsandleads) matches Stata reference", {
                  time = "year", specification = "lagsandleads",
                  vcov = "cluster", cluster = "schools")
   a <- atet(fit, type = "overall")
-  expect_equal(as.numeric(a$estimate), ref$b[1], tolerance = 1e-5)
-  expect_equal(sqrt(diag(a$vcov)[1]), ref$se[1], tolerance = 1e-5)
+  expect_equal(unname(as.numeric(a$estimate)), ref$b[1], tolerance = 1e-5)
+  expect_equal(unname(sqrt(diag(a$vcov)[1])), ref$se[1], tolerance = 1e-5)
 })
 
 test_that("byexposure ATET (lagsandleads) matches Stata reference", {
@@ -98,9 +108,10 @@ test_that("byexposure ATET (lagsandleads) matches Stata reference", {
                  vcov = "cluster", cluster = "schools")
   a <- atet(fit, type = "byexposure")
 
-  # ref$label is like "0.bn", "1.bn", ... or numeric event-time labels
-  # depending on Stata version. Parse the leading integer.
-  ref_lvl <- suppressWarnings(as.integer(sub("^([\\-0-9]+).*", "\\1", ref$label)))
+  # ref$label is the event-time number (possibly negative), maybe with a
+  # trailing "bn" / "o" Stata factor modifier. Pull the leading signed int.
+  ref_lvl <- suppressWarnings(as.integer(sub("^(-?[0-9]+).*$", "\\1",
+                                              as.character(ref$label))))
   fd_lvl  <- suppressWarnings(as.integer(rownames(a$tidy_table)))
   m <- match(ref_lvl, fd_lvl)
   ok <- !is.na(m)

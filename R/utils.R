@@ -1,6 +1,36 @@
 # Helpers for cohort construction, sample marking, and validation.
 # Mirror the logic in stata/flexdid.ado lines 56-153.
 
+#' Coerce a treatment column to an integer 0/1 vector.
+#'
+#' Accepts:
+#'  - numeric / integer (must already be 0/1; otherwise validate_binary errors)
+#'  - logical (TRUE -> 1, FALSE -> 0)
+#'
+#' Errors helpfully on character / factor inputs: those typically come from
+#' Stata `export delimited` writing value labels ("Yes"/"No") instead of
+#' codes. The fix is either to re-export with the `nolabel` option or to
+#' map levels explicitly in R, e.g. `df$tx <- as.integer(df$tx == "Yes")`.
+#'
+#' @keywords internal
+#' @noRd
+coerce_tx <- function(x, name) {
+  if (is.logical(x)) return(as.integer(x))
+  if (is.numeric(x) || is.integer(x)) return(as.integer(x))
+  if (is.character(x) || is.factor(x)) {
+    lvls <- if (is.factor(x)) levels(x) else sort(unique(x[!is.na(x)]))
+    stop(sprintf(
+      "Treatment column '%s' is %s with values {%s}. flexdid expects a numeric 0/1 indicator. Two common fixes:\n  - In Stata, re-export with `nolabel`: export delimited using ..., replace nolabel\n  - In R, map manually: data$%s <- as.integer(data$%s == \"<treated value>\")",
+      name,
+      if (is.factor(x)) "a factor" else "character",
+      paste0('"', lvls, '"', collapse = ", "),
+      name, name
+    ), call. = FALSE)
+  }
+  stop(sprintf("Treatment column '%s' has unsupported type '%s'.",
+               name, class(x)[1]), call. = FALSE)
+}
+
 #' @keywords internal
 #' @noRd
 validate_binary <- function(x, name) {

@@ -50,7 +50,9 @@ use "data-raw/hhabits.dta", clear
 egen chrt = min(year/hhabit), by(schools)
 replace chrt = 0 if chrt==.
 
-export delimited using "`OUT_DATA'", replace
+* `nolabel` keeps the underlying numeric codes for labeled variables
+* (hhabit, girl, sports) instead of writing "Yes"/"No" strings.
+export delimited using "`OUT_DATA'", replace nolabel
 
 * ---------- Spec 1: lagsandleads, group=chrt, cluster=schools ----------
 * Matches the spec used throughout the help-file examples.
