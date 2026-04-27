@@ -14,8 +14,9 @@
 *   tests/testthat/stata_reference/atet_bygroup.csv
 *   tests/testthat/stata_reference/atet_byget.csv
 *
-* Usage from the repo root:
-*   stata-mp -b do data-raw/make-stata-reference.do
+* Usage (cd to the repo root first, then run):
+*   cd /path/to/r-flexdid
+*   do "data-raw/make-stata-reference.do"
 *
 * If the user has an older flexdid installed, it pulls the latest from SSC.
 
@@ -24,15 +25,26 @@ set more off
 capture which flexdid
 if _rc ssc install flexdid
 
-* Repo root is the working directory for this run.
+* Verify the script is being run from the repository root.
+* c(do_file) is unavailable in Stata < 16, so auto-detection is not possible.
+capture confirm file "data-raw/hhabits.dta"
+if _rc {
+    display as error "ERROR: Run this script from the repository root."
+    display as error "  cd /path/to/r-flexdid"
+    display as error "  do data-raw/make-stata-reference.do"
+    exit 601
+}
+
 local OUT_DATA   "inst/extdata/hhabits.csv"
 local OUT_REF    "tests/testthat/stata_reference"
+capture mkdir "inst"
+capture mkdir "inst/extdata"
 capture mkdir "tests"
 capture mkdir "tests/testthat"
 capture mkdir "tests/testthat/stata_reference"
 
 * ---------- Data ----------
-webuse hhabits, clear
+use "data-raw/hhabits.dta", clear
 
 * Build the manual cohort variable used in the help-file examples.
 egen chrt = min(year/hhabit), by(schools)
