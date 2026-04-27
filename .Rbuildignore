@@ -1,0 +1,10 @@
+^\.Rproj\.user$
+^\.Rhistory$
+^.*\.Rproj$
+^data-raw$
+^stata$
+^README\.Rmd$
+^\.github$
+^\.claude$
+^\.git$
+^\.DS_Store$
