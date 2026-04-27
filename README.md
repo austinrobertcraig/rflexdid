@@ -1,4 +1,4 @@
-# flexdid
+# r-flexdid
 
 R port of the Stata [`flexdid`](https://ideas.repec.org/c/boc/bocode/s459302.html)
 command (Deb, Norton, Wooldridge & Zabel 2025; SSC). Estimates a flexible OLS
