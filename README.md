@@ -88,6 +88,99 @@ The R object returned by `flexdid()` carries the full design matrix and
 sample-aligned vectors needed by `atet()`. `summary()`, `coef()`, `vcov()`,
 and `print()` work as expected.
 
+## Function reference
+
+### `flexdid()`
+
+Estimate the FLEX difference-in-differences regression.
+
+**Usage**
+
+```r
+flexdid(
+  formula,
+  data,
+  tx,
+  group,
+  time,
+  specification  = c("lagsonly", "lagsandleads"),
+  xnotinteracted = NULL,
+  usercohort     = NULL,
+  weights        = NULL,
+  vcov           = c("cluster", "robust"),
+  cluster        = NULL,
+  subset         = NULL,
+  verbose        = FALSE
+)
+```
+
+**Arguments**
+
+| Argument | Description |
+|----------|-------------|
+| `formula` | Two-sided formula `y ~ x1 + x2`. The left-hand side is the outcome variable; the right-hand side lists covariates to interact with treatment, group, and time indicators. Use `y ~ 1` for no interacted covariates. |
+| `data` | A data frame. |
+| `tx` | Character. Column name of the binary treatment indicator (`1` = treated this period, `0` = otherwise). |
+| `group` | Character. Column name of the group variable used for group fixed effects and, by default, the level at which ATETs are estimated. |
+| `time` | Character. Column name of the integer time variable. Must be equally spaced unless `usercohort` is supplied. |
+| `specification` | `"lagsonly"` (default) or `"lagsandleads"`. Controls whether pre-treatment event-time indicators are included in the regression. |
+| `xnotinteracted` | Optional additive controls that are not interacted with treatment cells. A character vector of column names or a one-sided formula (e.g. `~ medu + factor(schools)`). Must be disjoint from the covariates in `formula`. |
+| `usercohort` | Optional column name of a user-supplied cohort variable. Overrides the internal cohort calculation. Useful when time periods are not equally spaced. |
+| `weights` | Optional column name of observation weights, treated as probability weights (matching Stata's default for clustered designs). |
+| `vcov` | `"cluster"` (default) or `"robust"`. |
+| `cluster` | Optional column name for the cluster variable. Defaults to `group` when `vcov = "cluster"`. |
+| `subset` | Optional logical vector or unevaluated expression restricting the sample (analogous to Stata's `if`). |
+| `verbose` | Logical. If `TRUE`, print the regression coefficient table after fitting. |
+
+**Value**
+
+An S3 object of class `flexdid`. Key components:
+
+| Component | Description |
+|-----------|-------------|
+| `coefficients` | Named numeric vector of OLS estimates (pivoted-out columns set to zero). |
+| `vcov` | Full `p × p` variance–covariance matrix for `coefficients`. |
+| `vcov_type` | Character; the VCE method used (`"cluster"` or `"robust"`). |
+| `n_clusters` | Integer; number of clusters (only when `vcov = "cluster"`). |
+| `fitted` | Numeric vector of fitted values (length = number of in-sample observations). |
+| `residuals` | Numeric vector of OLS residuals. |
+| `df_residual` | Residual degrees of freedom (`n − rank`). |
+| `nobs` | Number of observations used in estimation. |
+| `r2` / `r2_adj` | R-squared and adjusted R-squared. |
+| `f` | Overall F-statistic. |
+| `specification` | The specification used (`"lagsonly"` or `"lagsandleads"`). |
+| `cohort` | Integer vector of cohort assignments for each in-sample observation (0 for never-treated). |
+| `tx_indicator` | Integer vector of the `_Tx` indicator (the treatment-cell indicator, not the raw treatment variable). |
+| `eventtime` | Integer vector of event times (`time − cohort` for treated observations, `−1` for controls). |
+| `design` | List of design metadata used by `atet()`, including the sparse model matrix and cell-index lookup. |
+
+The object supports `print()`, `summary()`, `coef()`, and `vcov()`. Pass it to `atet()` to compute ATET aggregations.
+
+---
+
+### `atet()`
+
+Aggregate cell-level effects to average treatment effects on the treated.
+
+```r
+atet(model, type = c("overall", "byexposure", "bycalendar",
+                     "bycohort", "bygroup", "byget"),
+     values = NULL, for_expr = NULL,
+     aggregationweight = NULL, test = NULL, level = 95)
+```
+
+| Argument | Description |
+|----------|-------------|
+| `model` | A `flexdid` object returned by `flexdid()`. |
+| `type` | Aggregation type. `"overall"` collapses all post-treatment cells to a single ATET; `"byexposure"` reports one ATET per event time; `"bycalendar"` by calendar period; `"bycohort"` by cohort; `"bygroup"` by group; `"byget"` by group × event time. |
+| `values` | Numeric vector restricting which event times (for `"overall"`, `"byexposure"`, `"byget"`) or calendar periods (for `"bycalendar"`) to include. Defaults to all observed post-treatment values (all event times for `"lagsandleads"`). |
+| `for_expr` | Unevaluated expression (e.g. `quote(girl == 1)`) or one-sided formula restricting the subpopulation over which the ATET is averaged. Equivalent to Stata's `for(...)` option. |
+| `aggregationweight` | `"grouplevel"` to weight cells by group size rather than individual observations, matching Stata's `aggregationweight(grouplevel)`. |
+| `test` | `"zero"` to test H₀: all ATETs = 0; `"equal"` to test H₀: all ATETs are equal. Both use a Wald F-test. |
+| `level` | Confidence level for the tidy table (default 95). |
+
+Returns a `flexdid_atet` object with components `estimate`, `vcov`, `tidy_table`, `test_result`, and others. Supports `print()`, `as.data.frame()`, and `plot()` (the last requires `ggplot2`).
+
 ## Standard errors
 
 Standard errors on the regression coefficients use the same HC1 / CR1
