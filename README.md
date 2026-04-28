@@ -115,6 +115,23 @@ devtools::test()
 Without the CSVs the Stata-reference tests skip; the internal numerical
 tests (24 of them) run regardless.
 
+## Testing
+
+The package has 54 tests across two suites:
+
+- **Internal tests** — verify numerical correctness on synthetic panels without
+  requiring Stata. Checks include: OLS coefficients matching `lm()` to
+  machine precision, ATET aggregation identities, influence-function SE
+  formulas, Wald test statistics, and `for_expr` subgroup subsetting.
+
+- **Stata-reference tests** — compare point estimates and standard errors
+  directly against output produced by the original Stata `flexdid` command on
+  the `hhabits` example dataset. Coverage spans all six ATET aggregation types
+  (`overall`, `byexposure`, `bycalendar`, `bycohort`, `bygroup`, `byget`) and
+  both specifications (`lagsonly` and `lagsandleads`), as well as the underlying
+  regression coefficients. These tests skip automatically if the reference CSVs
+  are not present.
+
 ## References
 
 Deb, P., Norton, E. C., Wooldridge, J. M., Zabel, J. E. (2025), "A Flexible,
