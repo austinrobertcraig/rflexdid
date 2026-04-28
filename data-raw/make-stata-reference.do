@@ -15,7 +15,7 @@
 *   tests/testthat/stata_reference/atet_byget.csv
 *
 * Usage (cd to the repo root first, then run):
-*   cd /path/to/r-flexdid
+*   cd /path/to/rflexdid
 *   do "data-raw/make-stata-reference.do"
 *
 * If the user has an older flexdid installed, it pulls the latest from SSC.
@@ -30,7 +30,7 @@ if _rc ssc install flexdid
 capture confirm file "data-raw/hhabits.dta"
 if _rc {
     display as error "ERROR: Run this script from the repository root."
-    display as error "  cd /path/to/r-flexdid"
+    display as error "  cd /path/to/rflexdid"
     display as error "  do data-raw/make-stata-reference.do"
     exit 601
 }

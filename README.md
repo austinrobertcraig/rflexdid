@@ -1,4 +1,4 @@
-# r-flexdid
+# rflexdid
 
 R port of the Stata [`flexdid`](https://ideas.repec.org/c/boc/bocode/s459302.html)
 command (Deb, Norton, Wooldridge & Zabel 2025; SSC). Estimates a flexible OLS
@@ -14,27 +14,27 @@ This package is not on CRAN. Install once from this GitHub repo:
 
 ```r
 # install.packages("remotes")
-remotes::install_github("austinrobertcraig/r-flexdid")
+remotes::install_github("austinrobertcraig/rflexdid")
 ```
 
 Or, while iterating locally:
 
 ```r
-remotes::install_local("~/GitHub/r-flexdid")
+remotes::install_local("~/GitHub/rflexdid")
 ```
 
-`flexdid` depends on `Matrix`, `sandwich`, and base R `stats`. `ggplot2` is
+`rflexdid` depends on `Matrix`, `sandwich`, and base R `stats`. `ggplot2` is
 suggested (used only in `plot()`).
 
 ## Usage
 
 ```r
-library(flexdid)
+library(rflexdid)
 
 # `hhabits` here is the standard Stata example dataset. Export it once via
 # `webuse hhabits` and the data-raw/make-stata-reference.do script ships it
 # to inst/extdata. From R:
-hh <- read.csv(system.file("extdata", "hhabits.csv", package = "flexdid"))
+hh <- read.csv(system.file("extdata", "hhabits.csv", package = "rflexdid"))
 
 # Build the cohort variable used in the help-file examples.
 hh$chrt <- with(hh, ave(ifelse(hhabit == 1, year, NA), schools,
@@ -100,7 +100,7 @@ To regenerate the reference CSVs that the testthat suite compares against,
 run once from a Stata installation that has `flexdid` (>= v2.0):
 
 ```bash
-cd ~/GitHub/r-flexdid
+cd ~/GitHub/rflexdid
 stata-mp -b do data-raw/make-stata-reference.do
 ```
 

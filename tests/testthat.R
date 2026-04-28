@@ -1,4 +1,4 @@
 library(testthat)
-library(flexdid)
+library(rflexdid)
 
-test_check("flexdid")
+test_check("rflexdid")
