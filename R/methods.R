@@ -32,8 +32,9 @@ vcov.flexdid <- function(object, ...) {
 
 #' @export
 summary.flexdid <- function(object, digits = 4, ...) {
-  beta <- object$coefficients
-  V <- object$vcov
+  keep <- object$pivot_keep
+  beta <- object$coefficients[keep]
+  V <- object$vcov[keep, keep, drop = FALSE]
   se <- sqrt(diag(V))
   tval <- beta / se
   df <- object$df_residual
