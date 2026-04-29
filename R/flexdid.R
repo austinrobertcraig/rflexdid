@@ -221,25 +221,24 @@ flexdid <- function(formula,
     specification  = specification
   )
 
-  X_dense <- as.matrix(des$X)
-  n <- nrow(X_dense)
+  X_sparse <- des$X
+  n <- nrow(X_sparse)
 
-  # --- Fit
-  if (is.null(w)) {
-    fit <- stats::lm.fit(X_dense, y_in)
-    w_in <- rep(1, n)
-  } else {
-    w_in <- as.numeric(w[use])
-    fit <- stats::lm.wfit(X_dense, y_in, w = w_in)
-  }
+  # --- Fit on the sparse design (sparse Cholesky with rank-deficient fallback
+  # to dense lm.fit; see R/sparse_ols.R).
+  w_in <- if (is.null(w)) rep(1, n) else as.numeric(w[use])
+  fit <- sparse_ols(X_sparse, y_in, w_in)
 
-  # lm.fit returns NA for pivoted-out columns; track them explicitly.
-  beta <- fit$coefficients
-  pivot_keep <- !is.na(beta)
+  beta <- fit$beta
+  pivot_keep <- fit$pivot_keep
+  bread_kept <- fit$bread
   rank <- sum(pivot_keep)
   k_total <- length(beta)
+  # Stata / lm.fit convention: dropped columns get coefficient 0 (not NA) so
+  # downstream uses (fitted values, ATET aggregation) sum cleanly. pivot_keep
+  # still records which columns the OLS solution actually identifies.
   beta[!pivot_keep] <- 0
-  fitted <- as.numeric(X_dense %*% beta)
+  fitted <- as.numeric(X_sparse %*% beta)
   residuals <- y_in - fitted
 
   rss <- sum(w_in * residuals^2)
@@ -253,28 +252,32 @@ flexdid <- function(formula,
     1 - (rss / df_residual) / (tss / (n - 1))
   } else NA_real_
 
-  # --- VCE for beta (delegates to sandwich)
+  # --- VCE for beta. Pass the bread we already computed in sparse_ols() so
+  # compute_vcov() does not refactor (X' W X).
   V <- compute_vcov(
-    X = X_dense,
+    X = X_sparse,
     residuals = residuals,
     weights = w_in,
     pivot_keep = pivot_keep,
     rank = rank,
     vcov_type = vcov,
-    cluster = if (vcov == "cluster") cluster_vec[use] else NULL
+    cluster = if (vcov == "cluster") cluster_vec[use] else NULL,
+    bread = bread_kept
   )
   # Pad V with zeros for pivoted-out columns so dim(V) = k x k.
   V_full <- matrix(0, k_total, k_total)
   V_full[pivot_keep, pivot_keep] <- V
   rownames(V_full) <- colnames(V_full) <- des$colnames
 
-  # --- F statistic on all non-intercept terms (mirrors Stata's testparm)
+  # --- F statistic on all non-intercept terms (mirrors Stata's testparm).
+  # The constraint matrix R is a row selector, so R %*% beta = beta[non_int]
+  # and R %*% V %*% t(R) = V[non_int, non_int]; doing the matrix-multiplies
+  # explicitly is wasteful (p x p dense) for large designs.
   non_int <- setdiff(seq_along(beta), des$block_index$intercept)
   non_int <- non_int[pivot_keep[non_int]]
   if (length(non_int) > 0L) {
-    R <- diag(length(beta))[non_int, , drop = FALSE]
-    Rb <- R %*% beta
-    RVR <- R %*% V_full %*% t(R)
+    Rb <- beta[non_int]
+    RVR <- V_full[non_int, non_int, drop = FALSE]
     inv <- tryCatch(solve(RVR), error = function(e) NULL)
     F_stat <- if (!is.null(inv)) {
       as.numeric(t(Rb) %*% inv %*% Rb) / length(non_int)
@@ -326,7 +329,8 @@ flexdid <- function(formula,
     y_in           = y_in,
     # Design metadata
     design         = des,
-    X              = X_dense,
+    X              = X_sparse,
+    bread          = bread_kept,
     data_in        = data_in
   )
   class(out) <- "flexdid"

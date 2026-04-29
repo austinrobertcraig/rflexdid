@@ -8,3 +8,4 @@
 ^\.claude$
 ^\.git$
 ^\.DS_Store$
+^tests/benchmarks$

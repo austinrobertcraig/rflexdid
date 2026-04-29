@@ -199,21 +199,27 @@ atet <- function(model,
   }
 
   # ---- Influence functions.
-  # Score (per observation, on kept cols): w_i X_i u_i.
+  # Score (per observation, on kept cols): w_i X_i u_i. X_kept stays sparse;
+  # only the final IF_param product is densified.
   X_kept <- X[, pivot_keep, drop = FALSE]
   resid <- model$residuals
   score <- X_kept * (resid * w_obs)  # n x p_kept; rows are w_i X_i u_i
 
-  # Bread = (X'WX)^{-1}
-  if (all(w_obs == 1)) {
-    bread_inv <- crossprod(X_kept)
-  } else {
-    bread_inv <- crossprod(X_kept * sqrt(w_obs))
+  # Bread = (X' W X)^{-1}, computed once in flexdid() and stored on the model.
+  # Older flexdid objects (or callers that hand-construct one) may lack it; in
+  # that case recompute here as a fallback.
+  bread <- model$bread
+  if (is.null(bread)) {
+    if (all(w_obs == 1)) {
+      bread_inv <- crossprod(as.matrix(X_kept))
+    } else {
+      bread_inv <- crossprod(as.matrix(X_kept) * sqrt(w_obs))
+    }
+    bread <- chol2inv(chol(bread_inv))
   }
-  bread <- chol2inv(chol(bread_inv))
 
   # IF parameter piece: (n x L) = score (n x p_kept) %*% bread %*% t(C)
-  IF_param <- score %*% (bread %*% t(C))
+  IF_param <- as.matrix(score %*% (bread %*% t(C)))
 
   # IF subpop piece: (n x L) where IF[i, l] = (w_i / W_{S_l}) * 1[i in S_l] * (TE_i - ATET_l)
   IF_subpop <- matrix(0, nrow = n, ncol = L)

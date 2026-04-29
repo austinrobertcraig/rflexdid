@@ -176,56 +176,77 @@ build_design <- function(data, formula, group, time, cohort, tx_indicator,
                          dims = c(n, 0))
   }
 
-  # 7. factor(group) dummies (Stata-style: omit first level)
+  # 7. factor(group) dummies (Stata-style: omit first level). Built as a
+  # sparse triplet directly -- one nonzero per non-reference observation.
   group_f <- factor(group)
   group_levels <- levels(group_f)
-  group_dummies <- diag(length(group_levels))[as.integer(group_f), , drop = FALSE]
-  # drop first level
-  group_dummies <- group_dummies[, -1, drop = FALSE]
+  group_idx <- as.integer(group_f) - 1L  # 0 = reference (drop), 1..G_kept = kept
+  G_kept <- length(group_levels) - 1L
   group_dum_names <- paste0("group:", group_levels[-1])
-  block_group <- methods::as(group_dummies, "CsparseMatrix")
-  colnames(block_group) <- group_dum_names
+  if (G_kept > 0L) {
+    nonref_g <- which(group_idx > 0L)
+    block_group <- Matrix::sparseMatrix(
+      i = nonref_g, j = group_idx[nonref_g],
+      x = rep(1, length(nonref_g)), dims = c(n, G_kept)
+    )
+    colnames(block_group) <- group_dum_names
+  } else {
+    block_group <- Matrix::sparseMatrix(i = integer(0), j = integer(0),
+                                         x = numeric(0), dims = c(n, 0))
+  }
 
-  # 8. factor(time) dummies
+  # 8. factor(time) dummies (same pattern)
   time_f <- factor(time)
   time_levels <- levels(time_f)
-  time_dummies <- diag(length(time_levels))[as.integer(time_f), , drop = FALSE]
-  time_dummies <- time_dummies[, -1, drop = FALSE]
+  time_idx <- as.integer(time_f) - 1L
+  T_kept <- length(time_levels) - 1L
   time_dum_names <- paste0("time:", time_levels[-1])
-  block_time <- methods::as(time_dummies, "CsparseMatrix")
-  colnames(block_time) <- time_dum_names
+  if (T_kept > 0L) {
+    nonref_t <- which(time_idx > 0L)
+    block_time <- Matrix::sparseMatrix(
+      i = nonref_t, j = time_idx[nonref_t],
+      x = rep(1, length(nonref_t)), dims = c(n, T_kept)
+    )
+    colnames(block_time) <- time_dum_names
+  } else {
+    block_time <- Matrix::sparseMatrix(i = integer(0), j = integer(0),
+                                        x = numeric(0), dims = c(n, 0))
+  }
 
-  # 9. group x xvars
-  if (k > 0L && length(group_levels) > 1L) {
-    blk <- group_dummies
-    cols <- list()
-    cnames <- character(0)
-    for (xj in seq_len(k)) {
-      m <- blk * xvars_mm[, xj]
-      cols[[xj]] <- m
-      cnames <- c(cnames, paste0(group_dum_names, ":", xvars_names[xj]))
-    }
-    block_group_x <- do.call(cbind, cols)
-    block_group_x <- methods::as(block_group_x, "CsparseMatrix")
-    colnames(block_group_x) <- cnames
+  # 9. group x xvars: for each non-reference obs i and each covariate xj, emit
+  # one nonzero at (i, (xj-1)*G_kept + group_idx[i]) = xvars_mm[i, xj]. Column
+  # ordering matches the previous loop-and-cbind: x1 paired with all groups,
+  # then x2 paired with all groups, ...
+  if (k > 0L && G_kept > 0L) {
+    rows_g <- which(group_idx > 0L)
+    nrep_g <- length(rows_g)
+    i_gx <- rep(rows_g, each = k)
+    j_gx <- rep(seq_len(k) - 1L, times = nrep_g) * G_kept +
+            rep(group_idx[rows_g], each = k)
+    x_gx <- as.vector(t(xvars_mm[rows_g, , drop = FALSE]))
+    block_group_x <- Matrix::sparseMatrix(
+      i = i_gx, j = j_gx, x = x_gx, dims = c(n, G_kept * k)
+    )
+    colnames(block_group_x) <- as.vector(outer(group_dum_names, xvars_names,
+                                                paste, sep = ":"))
   } else {
     block_group_x <- Matrix::sparseMatrix(i = integer(0), j = integer(0),
                                            x = numeric(0), dims = c(n, 0))
   }
 
-  # 10. time x xvars
-  if (k > 0L && length(time_levels) > 1L) {
-    blk <- time_dummies
-    cols <- list()
-    cnames <- character(0)
-    for (xj in seq_len(k)) {
-      m <- blk * xvars_mm[, xj]
-      cols[[xj]] <- m
-      cnames <- c(cnames, paste0(time_dum_names, ":", xvars_names[xj]))
-    }
-    block_time_x <- do.call(cbind, cols)
-    block_time_x <- methods::as(block_time_x, "CsparseMatrix")
-    colnames(block_time_x) <- cnames
+  # 10. time x xvars (same pattern)
+  if (k > 0L && T_kept > 0L) {
+    rows_t <- which(time_idx > 0L)
+    nrep_t <- length(rows_t)
+    i_tx <- rep(rows_t, each = k)
+    j_tx <- rep(seq_len(k) - 1L, times = nrep_t) * T_kept +
+            rep(time_idx[rows_t], each = k)
+    x_tx <- as.vector(t(xvars_mm[rows_t, , drop = FALSE]))
+    block_time_x <- Matrix::sparseMatrix(
+      i = i_tx, j = j_tx, x = x_tx, dims = c(n, T_kept * k)
+    )
+    colnames(block_time_x) <- as.vector(outer(time_dum_names, xvars_names,
+                                               paste, sep = ":"))
   } else {
     block_time_x <- Matrix::sparseMatrix(i = integer(0), j = integer(0),
                                           x = numeric(0), dims = c(n, 0))

@@ -102,7 +102,7 @@ test_that("VCE robust matches a manual HC1 computation on a non-saturated fit", 
                  time = "year", specification = "lagsonly", vcov = "robust")
 
   # Manual HC1: V = (n/(n-k)) * (X'X)^{-1} * (sum_i u_i^2 X_i X_i') * (X'X)^{-1}
-  X <- fit$X[, fit$pivot_keep, drop = FALSE]
+  X <- as.matrix(fit$X[, fit$pivot_keep, drop = FALSE])
   u <- fit$residuals
   n <- fit$nobs
   k <- fit$rank
