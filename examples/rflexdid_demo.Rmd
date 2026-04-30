@@ -1,14 +1,17 @@
----
-title: "Demonstrating rflexdid on simulated data"
-output:
-  html_document:
-    toc: true
-    toc_depth: 2
----
+<!--
+Demo of rflexdid on simulated data. To regenerate rflexdid_demo.md:
+
+    cd examples && Rscript -e 'knitr::knit("rflexdid_demo.Rmd")'
+
+That produces rflexdid_demo.md plus a figure/ subdirectory of plot PNGs.
+GitHub renders the .md natively (code, output, and embedded plots inline).
+-->
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 ```
+
+# Demonstrating rflexdid on simulated data
 
 ## The simulated dataset
 
