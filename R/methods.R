@@ -103,7 +103,7 @@ print.flexdid_atet <- function(x, digits = 4, ...) {
     type_label <- paste0(type_label, " for `", deparse(x$for_expr), "`")
   }
   cat(type_label, "\n", sep = "")
-  cat("Regression sample: ", x$n_full,
+  cat("Observations: ", x$n_full,
       " | ATET sample: ", x$n_sub, "\n", sep = "")
   cat("Aggregation weight: ", x$aggregation_weight, "\n", sep = "")
   cat("\n")
