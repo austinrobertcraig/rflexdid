@@ -1,0 +1,180 @@
+---
+title: "Demonstrating rflexdid on simulated data"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+## The simulated dataset
+
+The script `simulate_data.R` builds a repeated cross section of 20,000
+adults surveyed across 40 counties over 10 years (2010–2019). Each year
+brings a fresh sample of 50 individuals per county; no individual is
+followed across time. Counties enact a sugar-sweetened-beverage (SSB)
+excise tax in different years (the staggered cohorts: 2013, 2015, 2017,
+plus a never-treated cohort labeled `0`). The outcome is daily SSB
+consumption in fluid ounces.
+
+The data-generating process imposes strict parallel pre-trends and known
+treatment effects: an immediate jump `alpha_g` (-1.5 oz/day for the 2013
+cohort, -1.0 for 2015, -0.5 for 2017) plus a smooth dynamic decline
+`-0.20 e - 0.02 e^2` in event time `e`. So early-cohort counties
+enacted larger taxes, and consumption keeps falling with longer exposure.
+
+```{r data}
+library(rflexdid)
+library(ggplot2)
+library(here)
+source(here("examples", "simulate_data.R"))
+df <- simulate_flexdid_data()
+head(df)
+table(df$cohort)
+```
+
+## Estimation
+
+`flexdid()` runs a single OLS regression of `ssb_oz` on a saturated set of
+cohort × group × time × treatment interactions, with `age` interacted in
+on the right-hand side. County and year fixed effects are absorbed
+automatically. `specification = "lagsandleads"` adds pre-treatment lead
+indicators so the parallel-trends assumption is visually testable.
+Standard errors cluster at the county level.
+
+```{r fit}
+fit <- flexdid(ssb_oz ~ age,
+               data = df,
+               tx = "treated", group = "county", time = "year",
+               specification = "lagsandleads",
+               vcov = "cluster", cluster = "county")
+fit
+```
+
+## Overall ATET
+
+A single number that averages the cell-level effects across all
+post-treatment observations. The DGP's true mean treatment effect over
+the treated subset is roughly -1.76 oz/day; the recovered estimate
+should be close.
+
+```{r overall}
+atet(fit, type = "overall")
+```
+
+## Event study (`byexposure`)
+
+The most useful diagnostic. Pre-period estimates (event time `e < 0`)
+should be statistically indistinguishable from zero; post-period
+estimates should grow more negative with exposure time, tracing out the
+dynamic profile of the tax's effect. The base period `e = -1` is
+mechanically zero with SE = 0.
+
+```{r byexposure}
+ax <- atet(fit, type = "byexposure", test = "zero")
+ax
+plot(ax)
+```
+
+The Wald test rejects the joint hypothesis that all event-time effects
+are zero.
+
+## By treated cohort
+
+Each treated cohort gets one ATET, averaging that cohort's
+post-treatment cell effects. The estimates should rank
+2013 (most negative) > 2015 > 2017 (least negative), mirroring the tax
+magnitudes baked into the DGP.
+
+```{r bycohort}
+acoh <- atet(fit, type = "bycohort")
+acoh
+plot(acoh)
+```
+
+## By calendar time
+
+A separate ATET for each calendar year, averaging across whichever
+cohorts were already post-treatment in that year. Effects start near
+zero in 2010–2012 (no cohort treated yet), turn negative in 2013
+(2013 cohort enters), and grow more negative as the 2015 and 2017
+cohorts roll in.
+
+```{r bycalendar}
+acal <- atet(fit, type = "bycalendar")
+acal
+plot(acal)
+```
+
+## By treated group (county)
+
+A separate ATET for each treated county. Useful for spotting outlier
+counties or for inspecting the within-cohort dispersion.
+
+```{r bygroup}
+agrp <- atet(fit, type = "bygroup")
+plot(agrp)
+```
+
+## Group × event time (`byget`)
+
+The most disaggregated view: one ATET per (county, event time) pair.
+Restricting `values = 0:3` keeps the table readable.
+
+```{r byget}
+aget <- atet(fit, type = "byget", values = 0:3)
+head(as.data.frame(aget), 12)
+```
+
+## Subgroup ATET via `for_expr`
+
+Restrict the population over which the ATET is averaged. This is the
+analogue of Stata's `for(female == 1)` option. The subgroup estimate
+should be close to the overall estimate, since the DGP doesn't make
+treatment effects depend on sex.
+
+```{r for_expr}
+atet(fit, type = "byexposure", for_expr = quote(female == 1))
+```
+
+## Non-interacted controls (`xnotinteracted`)
+
+`xnotinteracted` adds additive controls that are not interacted with the
+treatment-cell indicators — useful for absorbing variance from
+group-level covariates without inflating the parameter count. Region is
+constant within county, so it slots in cleanly here.
+
+```{r xnotinteracted}
+fit2 <- flexdid(ssb_oz ~ age,
+                data = df,
+                tx = "treated", group = "county", time = "year",
+                specification = "lagsandleads",
+                xnotinteracted = ~ region,
+                vcov = "cluster", cluster = "county")
+atet(fit2, type = "overall")
+```
+
+## Group-level aggregation weights
+
+`aggregationweight = "grouplevel"` reweights cells so that each county
+contributes equally to the ATET, regardless of cell size. In this
+simulation every county has exactly 500 observations, so the result
+matches the default `obslevel` weighting; with unbalanced cell sizes
+the two would differ.
+
+```{r aggregationweight}
+atet(fit, type = "overall", aggregationweight = "grouplevel")
+```
+
+## Wald test of homogeneity
+
+`test = "equal"` tests the null hypothesis that all event-time effects
+are equal — i.e., that the dynamic profile is flat. The DGP makes
+effects strictly increase in exposure, so the test should reject.
+
+```{r equal}
+atet(fit, type = "byexposure", test = "equal")
+```

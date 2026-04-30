@@ -28,66 +28,6 @@ remotes::install_local("~/GitHub/rflexdid")
 `rflexdid` depends on `Matrix`, `sandwich`, and base R `stats`. `ggplot2` is
 suggested (used only in `plot()`).
 
-## Usage
-
-```r
-library(rflexdid)
-
-# `hhabits` here is the standard Stata example dataset. Export it once via
-# `webuse hhabits` and the data-raw/make-stata-reference.do script ships it
-# to inst/extdata. From R:
-hh <- read.csv(system.file("extdata", "hhabits.csv", package = "rflexdid"))
-
-# Build the cohort variable used in the help-file examples.
-hh$chrt <- with(hh, ave(ifelse(hhabit == 1, year, NA), schools,
-                        FUN = function(z) suppressWarnings(min(z, na.rm = TRUE))))
-hh$chrt[!is.finite(hh$chrt)] <- 0
-
-# FLEX regression: lags-and-leads spec, cluster-robust SEs.
-fit <- flexdid(bmi ~ 1, data = hh, tx = "hhabit",
-               group = "chrt", time = "year",
-               specification = "lagsandleads",
-               vcov = "cluster", cluster = "schools")
-
-summary(fit)
-
-# Postestimation aggregations (analogues of `estat atet`).
-atet(fit, type = "overall")
-atet(fit, type = "byexposure", test = "zero")
-atet(fit, type = "bycalendar")
-atet(fit, type = "bycohort")
-atet(fit, type = "bygroup")
-atet(fit, type = "byget", values = -3:3)
-
-# Event-study plot.
-library(ggplot2)
-plot(atet(fit, type = "byexposure"))
-
-# Subgroup ATET (Stata's `for(...)` option).
-atet(fit, type = "overall", for_expr = quote(girl == 1))
-```
-
-## Mapping from Stata to R
-
-| Stata                                               | R                                                        |
-|-----------------------------------------------------|----------------------------------------------------------|
-| `flexdid bmi, tx(hhabit) group(s) time(year)`       | `flexdid(bmi ~ 1, data, tx="hhabit", group="s", time="year")` |
-| `flexdid bmi medu girl, ...`                        | `flexdid(bmi ~ medu + girl, ...)`                        |
-| `specification(lagsandleads)`                       | `specification = "lagsandleads"`                         |
-| `xnotinteracted(medu i.s)`                          | `xnotinteracted = ~ medu + factor(s)`                    |
-| `usercohort(chrt)`                                  | `usercohort = "chrt"`                                    |
-| `vce(cluster s)`                                    | `vcov = "cluster", cluster = "s"`                        |
-| `[pweight=w]`                                       | `weights = "w"`                                          |
-| `estat atet, overall`                               | `atet(fit, type = "overall")`                            |
-| `estat atet, byexposure(0/3) test(zero)`            | `atet(fit, type = "byexposure", values = 0:3, test = "zero")` |
-| `estat atet, byexposure for(girl==1)`               | `atet(fit, type = "byexposure", for_expr = quote(girl==1))` |
-| `estat atet, byget`                                 | `atet(fit, type = "byget")`                              |
-| `aggregationweight(grouplevel)`                     | `aggregationweight = "grouplevel"`                       |
-
-The R object returned by `flexdid()` carries the full design matrix and
-sample-aligned vectors needed by `atet()`. `summary()`, `coef()`, `vcov()`,
-and `print()` work as expected.
-
 ## Function reference
 
 ### `flexdid()`
@@ -180,6 +120,27 @@ atet(model, type = c("overall", "byexposure", "bycalendar",
 | `level` | Confidence level for the tidy table (default 95). |
 
 Returns a `flexdid_atet` object with components `estimate`, `vcov`, `tidy_table`, `test_result`, and others. Supports `print()`, `as.data.frame()`, and `plot()` (the last requires `ggplot2`).
+
+## Mapping from Stata to R
+
+| Stata                                               | R                                                        |
+|-----------------------------------------------------|----------------------------------------------------------|
+| `flexdid bmi, tx(hhabit) group(s) time(year)`       | `flexdid(bmi ~ 1, data, tx="hhabit", group="s", time="year")` |
+| `flexdid bmi medu girl, ...`                        | `flexdid(bmi ~ medu + girl, ...)`                        |
+| `specification(lagsandleads)`                       | `specification = "lagsandleads"`                         |
+| `xnotinteracted(medu i.s)`                          | `xnotinteracted = ~ medu + factor(s)`                    |
+| `usercohort(chrt)`                                  | `usercohort = "chrt"`                                    |
+| `vce(cluster s)`                                    | `vcov = "cluster", cluster = "s"`                        |
+| `[pweight=w]`                                       | `weights = "w"`                                          |
+| `estat atet, overall`                               | `atet(fit, type = "overall")`                            |
+| `estat atet, byexposure(0/3) test(zero)`            | `atet(fit, type = "byexposure", values = 0:3, test = "zero")` |
+| `estat atet, byexposure for(girl==1)`               | `atet(fit, type = "byexposure", for_expr = quote(girl==1))` |
+| `estat atet, byget`                                 | `atet(fit, type = "byget")`                              |
+| `aggregationweight(grouplevel)`                     | `aggregationweight = "grouplevel"`                       |
+
+The R object returned by `flexdid()` carries the full design matrix and
+sample-aligned vectors needed by `atet()`. `summary()`, `coef()`, `vcov()`,
+and `print()` work as expected.
 
 ## Standard errors
 
