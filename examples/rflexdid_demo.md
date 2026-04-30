@@ -126,8 +126,6 @@ atet(fit, type = "overall")
 ## 
 ##         Estimate Std. Error t value Pr(>|t|) [CI lo] [CI hi]
 ## Overall -1.6325   0.1882    -8.6762  0.0000  -2.0013 -1.2637
-## 
-## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
 ```
 
 ## Comparison to TWFE
@@ -198,8 +196,6 @@ atet(fit_age, type = "overall")
 ## 
 ##         Estimate Std. Error t value Pr(>|t|) [CI lo] [CI hi]
 ## Overall -1.5979   0.1863    -8.5779  0.0000  -1.9630 -1.2328
-## 
-## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
 ```
 
 The remaining sections continue to use the baseline (`fit`, no
@@ -243,8 +239,6 @@ ax
 ## Test of zero ATETs
 ##   H0: All effects are equal to zero
 ##   F(13, 19681) = 29.902   Prob > F = 0.0000
-## 
-## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
 ```
 
 ``` r
@@ -278,8 +272,6 @@ acoh
 ## 2013 -2.2881   0.2069    -11.0580  0.0000  -2.6936 -1.8825
 ## 2015 -1.4806   0.2313    -6.4019   0.0000  -1.9339 -1.0272
 ## 2017 -0.3561   0.2381    -1.4953   0.1348  -0.8228  0.1107
-## 
-## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
 ```
 
 ``` r
@@ -318,8 +310,6 @@ acal
 ## 2017 -1.5573   0.2654    -5.8677  0.0000  -2.0775 -1.0371
 ## 2018 -1.5855   0.2830    -5.6031  0.0000  -2.1401 -1.0308
 ## 2019 -1.7981   0.2770    -6.4912  0.0000  -2.3411 -1.2552
-## 
-## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
 ```
 
 ``` r
@@ -412,9 +402,7 @@ atet(fit, type = "byexposure", for_expr = quote(female == 1))
 ## 3  -1.9094   0.2060    -9.2696   0.0000  -2.3131  -1.5056 
 ## 4  -2.3654   0.2477    -9.5490   0.0000  -2.8509  -1.8799 
 ## 5  -2.9158   0.3151    -9.2527   0.0000  -3.5335  -2.2981 
-## 6  -3.0864   0.2591    -11.9132  0.0000  -3.5942  -2.5786 
-## 
-## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
+## 6  -3.0864   0.2591    -11.9132  0.0000  -3.5942  -2.5786
 ```
 
 ## Non-interacted controls (`xnotinteracted`)
@@ -446,8 +434,6 @@ atet(fit2, type = "overall")
 ## 
 ##         Estimate Std. Error t value Pr(>|t|) [CI lo] [CI hi]
 ## Overall -1.6325   0.1882    -8.6762  0.0000  -2.0013 -1.2637
-## 
-## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
 ```
 
 ## Group-level aggregation weights
@@ -470,8 +456,6 @@ atet(fit, type = "overall", aggregationweight = "grouplevel")
 ## 
 ##         Estimate Std. Error t value Pr(>|t|) [CI lo] [CI hi]
 ## Overall -1.6325   0.1882    -8.6762  0.0000  -2.0013 -1.2637
-## 
-## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
 ```
 
 ## Wald test of homogeneity
@@ -509,6 +493,4 @@ atet(fit, type = "byexposure", test = "equal")
 ## Test of equal ATETs
 ##   H0: Effects are equal to each other
 ##   F(12, 19681) = 29.224   Prob > F = 0.0000
-## 
-## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
 ```

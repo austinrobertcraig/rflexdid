@@ -115,7 +115,6 @@ print.flexdid_atet <- function(x, digits = 4, ...) {
     cat(sprintf("  F(%d, %d) = %.3f   Prob > F = %.4f\n",
                 tr$df1, tr$df2, tr$F, tr$p))
   }
-  cat("\nNote: Linearization (Stata's vce(unconditional)) is used for the standard errors.\n")
   invisible(x)
 }
 
