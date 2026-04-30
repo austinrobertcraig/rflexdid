@@ -121,7 +121,7 @@ atet(fit, type = "overall")
 
 ```
 ## Overall ATET
-## Observations: 20000 | Subpopulation observations: 7500
+## Regression sample: 20000 | ATET sample: 7500
 ## Aggregation weight: obslevel
 ## 
 ##         Estimate Std. Error t value Pr(>|t|) [CI lo] [CI hi]
@@ -191,7 +191,7 @@ atet(fit_age, type = "overall")
 
 ```
 ## Overall ATET
-## Observations: 20000 | Subpopulation observations: 7500
+## Regression sample: 20000 | ATET sample: 7500
 ## Aggregation weight: obslevel
 ## 
 ##         Estimate Std. Error t value Pr(>|t|) [CI lo] [CI hi]
@@ -217,7 +217,7 @@ ax
 
 ```
 ## ATET by exposure time
-## Observations: 20000 | Subpopulation observations: 15000
+## Regression sample: 20000 | ATET sample: 15000
 ## Aggregation weight: obslevel
 ## 
 ##    Estimate Std. Error t value  Pr(>|t|) [CI lo]  [CI hi] 
@@ -265,7 +265,7 @@ acoh
 
 ```
 ## ATET by treated cohort
-## Observations: 20000 | Subpopulation observations: 7500
+## Regression sample: 20000 | ATET sample: 7500
 ## Aggregation weight: obslevel
 ## 
 ##      Estimate Std. Error t value  Pr(>|t|) [CI lo] [CI hi]
@@ -296,7 +296,7 @@ acal
 
 ```
 ## ATET by calendar time
-## Observations: 20000 | Subpopulation observations: 13500
+## Regression sample: 20000 | ATET sample: 13500
 ## Aggregation weight: obslevel
 ## 
 ##      Estimate Std. Error t value Pr(>|t|) [CI lo] [CI hi]
@@ -385,7 +385,7 @@ atet(fit, type = "byexposure", for_expr = quote(female == 1))
 
 ```
 ## ATET by exposure time for `female == 1`
-## Observations: 20000 | Subpopulation observations: 7454
+## Regression sample: 20000 | ATET sample: 7454
 ## Aggregation weight: obslevel
 ## 
 ##    Estimate Std. Error t value  Pr(>|t|) [CI lo]  [CI hi] 
@@ -429,7 +429,7 @@ atet(fit2, type = "overall")
 
 ```
 ## Overall ATET
-## Observations: 20000 | Subpopulation observations: 7500
+## Regression sample: 20000 | ATET sample: 7500
 ## Aggregation weight: obslevel
 ## 
 ##         Estimate Std. Error t value Pr(>|t|) [CI lo] [CI hi]
@@ -451,7 +451,7 @@ atet(fit, type = "overall", aggregationweight = "grouplevel")
 
 ```
 ## Overall ATET
-## Observations: 20000 | Subpopulation observations: 7500
+## Regression sample: 20000 | ATET sample: 7500
 ## Aggregation weight: grouplevel
 ## 
 ##         Estimate Std. Error t value Pr(>|t|) [CI lo] [CI hi]
@@ -471,7 +471,7 @@ atet(fit, type = "byexposure", test = "equal")
 
 ```
 ## ATET by exposure time
-## Observations: 20000 | Subpopulation observations: 15000
+## Regression sample: 20000 | ATET sample: 15000
 ## Aggregation weight: obslevel
 ## 
 ##    Estimate Std. Error t value  Pr(>|t|) [CI lo]  [CI hi] 
