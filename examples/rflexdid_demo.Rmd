@@ -33,6 +33,7 @@ enacted larger taxes, and consumption keeps falling with longer exposure.
 library(rflexdid)
 library(ggplot2)
 library(here)
+library(fixest)
 source(here("examples", "simulate_data.R"))
 df <- simulate_flexdid_data()
 head(df)
@@ -41,15 +42,16 @@ table(df$cohort)
 
 ## Estimation
 
-`flexdid()` runs a single OLS regression of `ssb_oz` on a saturated set of
-cohort × group × time × treatment interactions, with `age` interacted in
-on the right-hand side. County and year fixed effects are absorbed
-automatically. `specification = "lagsandleads"` adds pre-treatment lead
-indicators so parallel pre-trends are visually testable.
-Standard errors cluster at the county level.
+`flexdid()` runs a single OLS regression of `ssb_oz` on a saturated set
+of cohort × group × time × treatment interactions. County and year
+fixed effects are absorbed automatically. `specification = "lagsandleads"`
+adds pre-treatment lead indicators so parallel pre-trends are visually
+testable. Standard errors cluster at the county level. The right-hand
+side `~ 1` here means no covariates; we add one in the
+[Including covariates](#including-covariates) section.
 
 ```{r fit}
-fit <- flexdid(ssb_oz ~ age,
+fit <- flexdid(ssb_oz ~ 1,
                data = df,
                tx = "treated",
                group = "county",
@@ -71,6 +73,55 @@ should be close.
 ```{r overall}
 atet(fit, type = "overall")
 ```
+
+## Comparison to TWFE
+
+For reference, the canonical two-way fixed-effects (TWFE) estimator
+regresses the outcome on a single dummy for treatment, with group and
+time fixed effects:
+
+```{r twfe}
+twfe <- feols(ssb_oz ~ treated | county + year,
+              data = df,
+              cluster = ~ county)
+
+twfe
+```
+
+The TWFE coefficient on `treated` is noticeably attenuated relative to
+the flexdid overall ATET above. This is the canonical
+Goodman-Bacon (2021) result: under staggered treatment timing with
+dynamic effects, TWFE puts negative weight on "forbidden comparisons"
+in which already-treated units serve as controls for later-treated
+cohorts. When effects intensify with exposure, those negative-weighted
+2 × 2 contrasts pull the estimate toward zero. The `flexdid` design
+sidesteps the problem by estimating each cohort × group × time cell
+separately and then aggregating only legitimate comparisons.
+
+## Including covariates
+
+Putting a continuous covariate on the right-hand side of the formula
+interacts it with every cohort × group × time cell — it allows the
+treatment effect to vary with the covariate and absorbs residual
+variance for tighter standard errors. In this DGP age does not moderate
+treatment, so the overall ATET barely moves; the standard error tightens
+slightly:
+
+```{r include_age}
+fit_age <- flexdid(ssb_oz ~ age,
+                   data = df,
+                   tx = "treated",
+                   group = "county",
+                   time = "year",
+                   specification = "lagsandleads",
+                   vcov = "cluster",
+                   cluster = "county")
+
+atet(fit_age, type = "overall")
+```
+
+The remaining sections continue to use the baseline (`fit`, no
+covariates) for clarity.
 
 ## Event study (`byexposure`)
 
@@ -155,7 +206,7 @@ group-level covariates without inflating the parameter count. Region is
 constant within county, so it slots in cleanly here.
 
 ```{r xnotinteracted}
-fit2 <- flexdid(ssb_oz ~ age,
+fit2 <- flexdid(ssb_oz ~ 1,
                 data = df,
                 tx = "treated",
                 group = "county",
@@ -164,7 +215,7 @@ fit2 <- flexdid(ssb_oz ~ age,
                 xnotinteracted = ~ region,
                 vcov = "cluster",
                 cluster = "county")
-                
+
 atet(fit2, type = "overall")
 ```
 

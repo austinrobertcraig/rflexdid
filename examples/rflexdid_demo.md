@@ -32,6 +32,7 @@ enacted larger taxes, and consumption keeps falling with longer exposure.
 library(rflexdid)
 library(ggplot2)
 library(here)
+library(fixest)
 source(here("examples", "simulate_data.R"))
 df <- simulate_flexdid_data()
 head(df)
@@ -59,16 +60,17 @@ table(df$cohort)
 
 ## Estimation
 
-`flexdid()` runs a single OLS regression of `ssb_oz` on a saturated set of
-cohort × group × time × treatment interactions, with `age` interacted in
-on the right-hand side. County and year fixed effects are absorbed
-automatically. `specification = "lagsandleads"` adds pre-treatment lead
-indicators so parallel pre-trends are visually testable.
-Standard errors cluster at the county level.
+`flexdid()` runs a single OLS regression of `ssb_oz` on a saturated set
+of cohort × group × time × treatment interactions. County and year
+fixed effects are absorbed automatically. `specification = "lagsandleads"`
+adds pre-treatment lead indicators so parallel pre-trends are visually
+testable. Standard errors cluster at the county level. The right-hand
+side `~ 1` here means no covariates; we add one in the
+[Including covariates](#including-covariates) section.
 
 
 ``` r
-fit <- flexdid(ssb_oz ~ age,
+fit <- flexdid(ssb_oz ~ 1,
                data = df,
                tx = "treated",
                group = "county",
@@ -87,7 +89,7 @@ fit
 ##   Treatment:     treated  | Group: county  | Time: year 
 ##   Observations:  20000 
 ##   VCE:           cluster (county; 40 clusters)
-##   R-squared:     0.1827   (adj. 0.1558)
+##   R-squared:     0.1470   (adj. 0.1332)
 ```
 
 ## Overall ATET
@@ -108,10 +110,85 @@ atet(fit, type = "overall")
 ## Aggregation weight: obslevel
 ## 
 ##         Estimate Std. Error t value Pr(>|t|) [CI lo] [CI hi]
+## Overall -1.6325   0.1882    -8.6762  0.0000  -2.0013 -1.2637
+## 
+## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
+```
+
+## Comparison to TWFE
+
+For reference, the canonical two-way fixed-effects (TWFE) estimator
+regresses the outcome on a single dummy for treatment, with group and
+time fixed effects:
+
+
+``` r
+twfe <- feols(ssb_oz ~ treated | county + year,
+              data = df,
+              cluster = ~ county)
+
+twfe
+```
+
+```
+## OLS estimation, Dep. Var.: ssb_oz
+## Observations: 20,000
+## Fixed-effects: county: 40,  year: 10
+## Standard-errors: Clustered (county) 
+##         Estimate Std. Error  t value  Pr(>|t|)    
+## treated -1.18174    0.12211 -9.67768 6.418e-12 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## RMSE: 3.16253     Adj. R2: 0.120942
+##                 Within R2: 0.01062
+```
+
+The TWFE coefficient on `treated` is noticeably attenuated relative to
+the flexdid overall ATET above. This is the canonical
+Goodman-Bacon (2021) result: under staggered treatment timing with
+dynamic effects, TWFE puts negative weight on "forbidden comparisons"
+in which already-treated units serve as controls for later-treated
+cohorts. When effects intensify with exposure, those negative-weighted
+2 × 2 contrasts pull the estimate toward zero. The `flexdid` design
+sidesteps the problem by estimating each cohort × group × time cell
+separately and then aggregating only legitimate comparisons.
+
+## Including covariates
+
+Putting a continuous covariate on the right-hand side of the formula
+interacts it with every cohort × group × time cell — it allows the
+treatment effect to vary with the covariate and absorbs residual
+variance for tighter standard errors. In this DGP age does not moderate
+treatment, so the overall ATET barely moves; the standard error tightens
+slightly:
+
+
+``` r
+fit_age <- flexdid(ssb_oz ~ age,
+                   data = df,
+                   tx = "treated",
+                   group = "county",
+                   time = "year",
+                   specification = "lagsandleads",
+                   vcov = "cluster",
+                   cluster = "county")
+
+atet(fit_age, type = "overall")
+```
+
+```
+## Overall ATET
+## Observations: 20000 | Subpopulation observations: 7500
+## Aggregation weight: obslevel
+## 
+##         Estimate Std. Error t value Pr(>|t|) [CI lo] [CI hi]
 ## Overall -1.5979   0.1863    -8.5779  0.0000  -1.9630 -1.2328
 ## 
 ## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
 ```
+
+The remaining sections continue to use the baseline (`fit`, no
+covariates) for clarity.
 
 ## Event study (`byexposure`)
 
@@ -133,24 +210,24 @@ ax
 ## Aggregation weight: obslevel
 ## 
 ##    Estimate Std. Error t value  Pr(>|t|) [CI lo]  [CI hi] 
-## -7  0.3339   0.2560     1.3040   0.1923  -0.1680   0.8357 
-## -6  0.3460   0.3603     0.9603   0.3369  -0.3602   1.0522 
-## -5 -0.0314   0.1660    -0.1892   0.8500  -0.3567   0.2939 
-## -4  0.2874   0.2220     1.2944   0.1955  -0.1478   0.7226 
-## -3  0.0592   0.1520     0.3896   0.6968  -0.2387   0.3571 
-## -2  0.2756   0.1805     1.5265   0.1269  -0.0783   0.6294 
+## -7  0.3039   0.2493     1.2192   0.2228  -0.1847   0.7926 
+## -6  0.3371   0.3767     0.8950   0.3708  -0.4012   1.0754 
+## -5 -0.0052   0.1619    -0.0322   0.9743  -0.3227   0.3122 
+## -4  0.2557   0.2208     1.1580   0.2469  -0.1771   0.6885 
+## -3  0.0302   0.1457     0.2075   0.8356  -0.2554   0.3158 
+## -2  0.2044   0.1781     1.1478   0.2511  -0.1447   0.5536 
 ## -1  0.0000   0.0000          NA       NA       NA       NA
-## 0  -0.9029   0.2057    -4.3898   0.0000  -1.3061  -0.4998 
-## 1  -1.1250   0.1696    -6.6334   0.0000  -1.4574  -0.7926 
-## 2  -1.2817   0.1771    -7.2355   0.0000  -1.6289  -0.9345 
-## 3  -1.8229   0.2190    -8.3239   0.0000  -2.2521  -1.3936 
-## 4  -2.2944   0.2416    -9.4984   0.0000  -2.7679  -1.8209 
-## 5  -2.8562   0.3142    -9.0912   0.0000  -3.4720  -2.2404 
-## 6  -2.9485   0.2777    -10.6166  0.0000  -3.4928  -2.4041 
+## 0  -0.9187   0.1965    -4.6743   0.0000  -1.3039  -0.5335 
+## 1  -1.1513   0.1720    -6.6924   0.0000  -1.4885  -0.8141 
+## 2  -1.3100   0.1785    -7.3401   0.0000  -1.6598  -0.9602 
+## 3  -1.8970   0.2074    -9.1472   0.0000  -2.3035  -1.4905 
+## 4  -2.3088   0.2429    -9.5040   0.0000  -2.7849  -1.8326 
+## 5  -2.9005   0.3173    -9.1412   0.0000  -3.5225  -2.2786 
+## 6  -3.0355   0.2726    -11.1340  0.0000  -3.5699  -2.5011 
 ## 
 ## Test of zero ATETs
 ##   H0: All effects are equal to zero
-##   F(13, 19362) = 26.690   Prob > F = 0.0000
+##   F(13, 19681) = 29.902   Prob > F = 0.0000
 ## 
 ## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
 ```
@@ -183,9 +260,9 @@ acoh
 ## Aggregation weight: obslevel
 ## 
 ##      Estimate Std. Error t value  Pr(>|t|) [CI lo] [CI hi]
-## 2013 -2.2065   0.2095    -10.5326  0.0000  -2.6171 -1.7959
-## 2015 -1.4897   0.2313    -6.4405   0.0000  -1.9431 -1.0363
-## 2017 -0.3581   0.2459    -1.4564   0.1453  -0.8400  0.1238
+## 2013 -2.2881   0.2069    -11.0580  0.0000  -2.6936 -1.8825
+## 2015 -1.4806   0.2313    -6.4019   0.0000  -1.9339 -1.0272
+## 2017 -0.3561   0.2381    -1.4953   0.1348  -0.8228  0.1107
 ## 
 ## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
 ```
@@ -216,16 +293,16 @@ acal
 ## Aggregation weight: obslevel
 ## 
 ##      Estimate Std. Error t value Pr(>|t|) [CI lo] [CI hi]
-## 2010  0.2167   0.1707     1.2696  0.2042  -0.1179  0.5513
-## 2011  0.4084   0.2318     1.7621  0.0781  -0.0459  0.8626
-## 2012 -0.2471   0.1896    -1.3029  0.1926  -0.6187  0.1246
-## 2013 -0.4458   0.2794    -1.5954  0.1106  -0.9934  0.1019
-## 2014 -0.6607   0.3007    -2.1974  0.0280  -1.2500 -0.0714
-## 2015 -0.7429   0.2290    -3.2449  0.0012  -1.1917 -0.2942
-## 2016 -1.7976   0.1991    -9.0294  0.0000  -2.1879 -1.4074
-## 2017 -1.5574   0.2725    -5.7156  0.0000  -2.0914 -1.0233
-## 2018 -1.5559   0.2803    -5.5509  0.0000  -2.1053 -1.0065
-## 2019 -1.7769   0.2737    -6.4915  0.0000  -2.3134 -1.2404
+## 2010  0.1864   0.1611     1.1569  0.2473  -0.1294  0.5023
+## 2011  0.3689   0.2426     1.5209  0.1283  -0.1065  0.8443
+## 2012 -0.2093   0.1795    -1.1657  0.2437  -0.5611  0.1426
+## 2013 -0.5006   0.2655    -1.8857  0.0594  -1.0209  0.0198
+## 2014 -0.7330   0.3080    -2.3801  0.0173  -1.3367 -0.1293
+## 2015 -0.8053   0.2274    -3.5408  0.0004  -1.2511 -0.3595
+## 2016 -1.8413   0.1972    -9.3377  0.0000  -2.2278 -1.4548
+## 2017 -1.5573   0.2654    -5.8677  0.0000  -2.0775 -1.0371
+## 2018 -1.5855   0.2830    -5.6031  0.0000  -2.1401 -1.0308
+## 2019 -1.7981   0.2770    -6.4912  0.0000  -2.3411 -1.2552
 ## 
 ## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
 ```
@@ -261,32 +338,32 @@ head(as.data.frame(aget), 12)
 ```
 
 ```
-##     label    Estimate Std. Error     t value     Pr(>|t|)     [CI lo]
-## 1  g3|et0 -1.19173887  0.1960159  -6.0798062 1.225823e-09 -1.57594706
-## 2  g3|et1 -1.77779029  0.1772682 -10.0288150 1.300401e-23 -2.12525136
-## 3  g3|et2 -1.48958725  0.1384743 -10.7571350 6.534993e-27 -1.76100895
-## 4  g3|et3 -2.65807660  0.1634677 -16.2605653 4.630006e-59 -2.97848736
-## 5  g4|et0 -0.08695303  0.1753483  -0.4958876 6.199794e-01 -0.43065082
-## 6  g4|et1 -0.46742651  0.1400854  -3.3367258 8.493108e-04 -0.74200599
-## 7  g4|et2  0.28527450  0.2148237   1.3279472 1.842112e-01 -0.13579848
-## 8  g5|et0  1.21994585  0.1801225   6.7728671 1.298788e-11  0.86689014
-## 9  g5|et1  0.90231119  0.1480671   6.0939336 1.122524e-09  0.61208683
-## 10 g5|et2  0.53800196  0.2249698   2.3914406 1.679188e-02  0.09704166
-## 11 g7|et0 -1.03105848  0.1843624  -5.5925633 2.267631e-08 -1.39242477
-## 12 g7|et1 -1.39257831  0.1941193  -7.1738286 7.556084e-13 -1.77306885
+##     label    Estimate Std. Error     t value     Pr(>|t|)       [CI lo]
+## 1  g3|et0 -1.20847035  0.1813006  -6.6655605 2.706438e-11 -1.5638349192
+## 2  g3|et1 -1.89108086  0.1778084 -10.6354960 2.402338e-26 -2.2396004111
+## 3  g3|et2 -1.61524325  0.1130508 -14.2877681 4.435297e-46 -1.8368323285
+## 4  g3|et3 -2.70388137  0.1467272 -18.4279477 3.365081e-75 -2.9914791063
+## 5  g4|et0 -0.47651770  0.1445281  -3.2970598 9.787574e-04 -0.7598049450
+## 6  g4|et1 -0.42904170  0.1458502  -2.9416601 3.268384e-03 -0.7149204113
+## 7  g4|et2  0.07151653  0.2092706   0.3417418 7.325488e-01 -0.3386716049
+## 8  g5|et0  1.04350167  0.1445281   7.2200621 5.385622e-13  0.7602144268
+## 9  g5|et1  0.70776934  0.1458502   4.8527144 1.227154e-06  0.4218906292
+## 10 g5|et2  0.41048103  0.2092706   1.9614841 4.983665e-02  0.0002928971
+## 11 g7|et0 -0.88458046  0.1798005  -4.9197895 8.733675e-07 -1.2370045774
+## 12 g7|et1 -1.34265963  0.1992974  -6.7369666 1.661979e-11 -1.7332992945
 ##       [CI hi]
-## 1  -0.8075307
-## 2  -1.4303292
-## 3  -1.2181655
-## 4  -2.3376658
-## 5   0.2567448
-## 6  -0.1928470
-## 7   0.7063475
-## 8   1.5730016
-## 9   1.1925355
-## 10  0.9789623
-## 11 -0.6696922
-## 12 -1.0120878
+## 1  -0.8531058
+## 2  -1.5425613
+## 3  -1.3936542
+## 4  -2.4162836
+## 5  -0.1932305
+## 6  -0.1431630
+## 7   0.4817047
+## 8   1.3267889
+## 9   0.9936480
+## 10  0.8206692
+## 11 -0.5321563
+## 12 -0.9520200
 ```
 
 ## Subgroup ATET via `for_expr`
@@ -307,20 +384,20 @@ atet(fit, type = "byexposure", for_expr = quote(female == 1))
 ## Aggregation weight: obslevel
 ## 
 ##    Estimate Std. Error t value  Pr(>|t|) [CI lo]  [CI hi] 
-## -7  0.2739   0.2528     1.0833   0.2787  -0.2217   0.7694 
-## -6  0.3288   0.3554     0.9251   0.3549  -0.3678   1.0253 
-## -5 -0.0683   0.1637    -0.4174   0.6764  -0.3892   0.2525 
-## -4  0.2435   0.2208     1.1024   0.2703  -0.1894   0.6763 
-## -3  0.0478   0.1530     0.3123   0.7548  -0.2520   0.3476 
-## -2  0.2281   0.1886     1.2093   0.2265  -0.1416   0.5977 
+## -7  0.2790   0.2468     1.1306   0.2582  -0.2047   0.7628 
+## -6  0.3474   0.3726     0.9326   0.3510  -0.3828   1.0777 
+## -5 -0.0180   0.1610    -0.1116   0.9112  -0.3336   0.2977 
+## -4  0.2353   0.2199     1.0699   0.2847  -0.1958   0.6664 
+## -3  0.0205   0.1458     0.1407   0.8881  -0.2653   0.3063 
+## -2  0.1706   0.1822     0.9365   0.3490  -0.1865   0.5278 
 ## -1  0.0000   0.0000          NA       NA       NA       NA
-## 0  -0.9111   0.2068    -4.4060   0.0000  -1.3164  -0.5058 
-## 1  -1.1871   0.1735    -6.8433   0.0000  -1.5271  -0.8471 
-## 2  -1.2850   0.1822    -7.0508   0.0000  -1.6422  -0.9278 
-## 3  -1.8696   0.2116    -8.8354   0.0000  -2.2844  -1.4548 
-## 4  -2.3580   0.2481    -9.5044   0.0000  -2.8443  -1.8717 
-## 5  -2.8804   0.3211    -8.9698   0.0000  -3.5098  -2.2510 
-## 6  -3.0591   0.2929    -10.4444  0.0000  -3.6332  -2.4850 
+## 0  -0.9115   0.1978    -4.6072   0.0000  -1.2993  -0.5237 
+## 1  -1.1795   0.1713    -6.8846   0.0000  -1.5153  -0.8437 
+## 2  -1.3023   0.1857    -7.0120   0.0000  -1.6663  -0.9382 
+## 3  -1.9094   0.2060    -9.2696   0.0000  -2.3131  -1.5056 
+## 4  -2.3654   0.2477    -9.5490   0.0000  -2.8509  -1.8799 
+## 5  -2.9158   0.3151    -9.2527   0.0000  -3.5335  -2.2981 
+## 6  -3.0864   0.2591    -11.9132  0.0000  -3.5942  -2.5786 
 ## 
 ## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
 ```
@@ -334,7 +411,7 @@ constant within county, so it slots in cleanly here.
 
 
 ``` r
-fit2 <- flexdid(ssb_oz ~ age,
+fit2 <- flexdid(ssb_oz ~ 1,
                 data = df,
                 tx = "treated",
                 group = "county",
@@ -343,7 +420,7 @@ fit2 <- flexdid(ssb_oz ~ age,
                 xnotinteracted = ~ region,
                 vcov = "cluster",
                 cluster = "county")
-                
+
 atet(fit2, type = "overall")
 ```
 
@@ -353,7 +430,7 @@ atet(fit2, type = "overall")
 ## Aggregation weight: obslevel
 ## 
 ##         Estimate Std. Error t value Pr(>|t|) [CI lo] [CI hi]
-## Overall -1.5979   0.1863    -8.5779  0.0000  -1.9630 -1.2328
+## Overall -1.6325   0.1882    -8.6762  0.0000  -2.0013 -1.2637
 ## 
 ## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
 ```
@@ -377,7 +454,7 @@ atet(fit, type = "overall", aggregationweight = "grouplevel")
 ## Aggregation weight: grouplevel
 ## 
 ##         Estimate Std. Error t value Pr(>|t|) [CI lo] [CI hi]
-## Overall -1.5979   0.1863    -8.5779  0.0000  -1.9630 -1.2328
+## Overall -1.6325   0.1882    -8.6762  0.0000  -2.0013 -1.2637
 ## 
 ## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
 ```
@@ -399,24 +476,24 @@ atet(fit, type = "byexposure", test = "equal")
 ## Aggregation weight: obslevel
 ## 
 ##    Estimate Std. Error t value  Pr(>|t|) [CI lo]  [CI hi] 
-## -7  0.3339   0.2560     1.3040   0.1923  -0.1680   0.8357 
-## -6  0.3460   0.3603     0.9603   0.3369  -0.3602   1.0522 
-## -5 -0.0314   0.1660    -0.1892   0.8500  -0.3567   0.2939 
-## -4  0.2874   0.2220     1.2944   0.1955  -0.1478   0.7226 
-## -3  0.0592   0.1520     0.3896   0.6968  -0.2387   0.3571 
-## -2  0.2756   0.1805     1.5265   0.1269  -0.0783   0.6294 
+## -7  0.3039   0.2493     1.2192   0.2228  -0.1847   0.7926 
+## -6  0.3371   0.3767     0.8950   0.3708  -0.4012   1.0754 
+## -5 -0.0052   0.1619    -0.0322   0.9743  -0.3227   0.3122 
+## -4  0.2557   0.2208     1.1580   0.2469  -0.1771   0.6885 
+## -3  0.0302   0.1457     0.2075   0.8356  -0.2554   0.3158 
+## -2  0.2044   0.1781     1.1478   0.2511  -0.1447   0.5536 
 ## -1  0.0000   0.0000          NA       NA       NA       NA
-## 0  -0.9029   0.2057    -4.3898   0.0000  -1.3061  -0.4998 
-## 1  -1.1250   0.1696    -6.6334   0.0000  -1.4574  -0.7926 
-## 2  -1.2817   0.1771    -7.2355   0.0000  -1.6289  -0.9345 
-## 3  -1.8229   0.2190    -8.3239   0.0000  -2.2521  -1.3936 
-## 4  -2.2944   0.2416    -9.4984   0.0000  -2.7679  -1.8209 
-## 5  -2.8562   0.3142    -9.0912   0.0000  -3.4720  -2.2404 
-## 6  -2.9485   0.2777    -10.6166  0.0000  -3.4928  -2.4041 
+## 0  -0.9187   0.1965    -4.6743   0.0000  -1.3039  -0.5335 
+## 1  -1.1513   0.1720    -6.6924   0.0000  -1.4885  -0.8141 
+## 2  -1.3100   0.1785    -7.3401   0.0000  -1.6598  -0.9602 
+## 3  -1.8970   0.2074    -9.1472   0.0000  -2.3035  -1.4905 
+## 4  -2.3088   0.2429    -9.5040   0.0000  -2.7849  -1.8326 
+## 5  -2.9005   0.3173    -9.1412   0.0000  -3.5225  -2.2786 
+## 6  -3.0355   0.2726    -11.1340  0.0000  -3.5699  -2.5011 
 ## 
 ## Test of equal ATETs
 ##   H0: Effects are equal to each other
-##   F(12, 19362) = 25.138   Prob > F = 0.0000
+##   F(12, 19681) = 29.224   Prob > F = 0.0000
 ## 
 ## Note: Linearization (Stata's vce(unconditional)) is used for the standard errors.
 ```
