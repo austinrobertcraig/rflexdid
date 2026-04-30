@@ -20,7 +20,7 @@ adults surveyed across 40 counties over 10 years (2010–2019). Each year
 brings a fresh sample of 50 individuals per county; no individual is
 followed across time. Counties enact a sugar-sweetened-beverage (SSB)
 excise tax in different years (the staggered cohorts: 2013, 2015, 2017,
-plus a never-treated cohort labeled `0`). The outcome is daily SSB
+plus a never-treated cohort labeled `0`). The outcome, `ssb_oz`, is daily SSB
 consumption in fluid ounces.
 
 The data-generating process imposes strict parallel pre-trends and known
@@ -45,15 +45,19 @@ table(df$cohort)
 cohort × group × time × treatment interactions, with `age` interacted in
 on the right-hand side. County and year fixed effects are absorbed
 automatically. `specification = "lagsandleads"` adds pre-treatment lead
-indicators so the parallel-trends assumption is visually testable.
+indicators so parallel pre-trends are visually testable.
 Standard errors cluster at the county level.
 
 ```{r fit}
 fit <- flexdid(ssb_oz ~ age,
                data = df,
-               tx = "treated", group = "county", time = "year",
+               tx = "treated",
+               group = "county",
+               time = "year",
                specification = "lagsandleads",
-               vcov = "cluster", cluster = "county")
+               vcov = "cluster",
+               cluster = "county")
+
 fit
 ```
 
@@ -153,10 +157,14 @@ constant within county, so it slots in cleanly here.
 ```{r xnotinteracted}
 fit2 <- flexdid(ssb_oz ~ age,
                 data = df,
-                tx = "treated", group = "county", time = "year",
+                tx = "treated",
+                group = "county",
+                time = "year",
                 specification = "lagsandleads",
                 xnotinteracted = ~ region,
-                vcov = "cluster", cluster = "county")
+                vcov = "cluster",
+                cluster = "county")
+                
 atet(fit2, type = "overall")
 ```
 
