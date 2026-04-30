@@ -94,10 +94,25 @@ fit
 
 ## Overall ATET
 
-A single number that averages the cell-level effects across all
-post-treatment observations. The DGP's true mean treatment effect over
-the treated subset is roughly -1.76 oz/day; the recovered estimate
-should be close.
+A single number that averages cell-level effects across all
+post-treatment observations. The DGP-implied truth (the mean of `tau`
+over treated rows, using the same formula as `simulate_data.R`):
+
+
+``` r
+alpha_g <- c(`2013` = -1.5, `2015` = -1.0, `2017` = -0.5, `0` = 0)
+e <- df$year - df$cohort
+tau_true <- ifelse(df$treated == 1,
+                   alpha_g[as.character(df$cohort)] - 0.20 * e - 0.02 * e^2,
+                   0)
+mean(tau_true[df$treated == 1])
+```
+
+```
+## [1] -1.754667
+```
+
+The flexdid estimate should be close:
 
 
 ``` r
