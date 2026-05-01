@@ -112,7 +112,7 @@ program define dump_coefs
     preserve
     clear
     set obs `k'
-    gen str40 _name = ""
+    gen str120 _name = ""
     gen double g    = .
     gen double t    = .
     gen str4   kind = ""
@@ -129,13 +129,15 @@ program define dump_coefs
     *   - end with "._Tx" (no covariate-interaction "#" after _Tx)
     keep if regexm(_name, "_Cohort#") & !regexm(_name, "_Tx#")
     * Extract the three leading numeric tokens: cohort, group, year.
-    gen str20 _nums = _name
+    gen str120 _nums = _name
     quietly replace _nums = subinstr(_nums, ".", " ", .)
     quietly replace _nums = subinstr(_nums, "#", " ", .)
-    * Drop Stata factor modifiers (bn, b, o) attached to numbers.
-    quietly replace _nums = regexr(_nums, "([0-9])(bn|b|o)", "$1")
-    quietly replace _nums = regexr(_nums, "([0-9])(bn|b|o)", "$1")
-    quietly replace _nums = regexr(_nums, "([0-9])(bn|b|o)", "$1")
+    * Drop Stata factor modifiers (bn, b, o) attached to numbers. regexr
+    * replaces only the first match per call; up to four modifiers may appear
+    * (cohort, group, year, _Tx), so iterate enough times to clear all of them.
+    forvalues _pass = 1/6 {
+        quietly replace _nums = regexr(_nums, "([0-9])(bn|b|o)", "$1")
+    }
     * Now _nums looks like: "<cohort>  _Cohort <group> `groupvar' <year> year 1 _Tx"
     * Replace any non-numeric tokens with spaces, then split.
     gen double _cohort = real(word(_nums, 1))
@@ -275,10 +277,12 @@ program define dump_atet_bycohort
     restore
 end
 
-* dump_atet_byget <fname>: write (g, eventtime, b, se). Each r(b) colname for
-* byget encodes a (group, eventtime) pair in factor-interaction form, e.g.
-* "2013.cohort#0.eventtime" or with bn/b/o modifiers attached. Pull the two
-* leading signed-integer tokens.
+* dump_atet_byget <fname>: write (g, eventtime, b, se). flexdid_atet sets
+* the byget colnames as quoted "<g> <eventtime>" pairs (see flexdid_atet.ado),
+* which Stata stores as eqname:colname — `colnames B` returns just the column
+* part and `coleq B` the equation part. Read both, concatenate, and pull the
+* two leading numeric tokens. This also tolerates the alternate factor-
+* interaction form ("2013.cohort#0.eventtime") if Stata changes its output.
 capture program drop dump_atet_byget
 program define dump_atet_byget
     args fname
@@ -286,26 +290,33 @@ program define dump_atet_byget
     matrix V = r(V)
     local k = colsof(B)
     local names : colnames B
+    local eqs   : coleq    B
     preserve
     clear
     set obs `k'
-    gen str60  _name = ""
+    gen str120 _name = ""
+    gen str120 _eq   = ""
     gen double g         = .
     gen double eventtime = .
     gen double b  = .
     gen double se = .
     forvalues i = 1/`k' {
         local nm : word `i' of `names'
+        local eq : word `i' of `eqs'
         quietly replace _name = "`nm'" in `i'
+        quietly replace _eq   = "`eq'" in `i'
         quietly replace b  = B[1, `i'] in `i'
         quietly replace se = sqrt(V[`i', `i']) in `i'
     }
-    * Strip Stata factor modifiers, then collect the first two signed integers.
-    gen str60 _scrub = _name
-    quietly replace _scrub = regexr(_scrub, "([0-9])(bn|b|o)", "$1")
-    quietly replace _scrub = regexr(_scrub, "([0-9])(bn|b|o)", "$1")
+    * Combine eq + name into one scratch string, strip factor modifiers, then
+    * split on ".", "#", and ":" so word() returns integer tokens.
+    gen str120 _scrub = _eq + " " + _name
+    forvalues _pass = 1/4 {
+        quietly replace _scrub = regexr(_scrub, "([0-9])(bn|b|o)", "$1")
+    }
     quietly replace _scrub = subinstr(_scrub, ".", " ", .)
     quietly replace _scrub = subinstr(_scrub, "#", " ", .)
+    quietly replace _scrub = subinstr(_scrub, ":", " ", .)
     quietly {
         forvalues r = 1/`=_N' {
             local seen = 0
