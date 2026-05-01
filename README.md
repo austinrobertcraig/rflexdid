@@ -105,10 +105,16 @@ The object supports `print()`, `summary()`, `coef()`, and `vcov()`. Pass it to `
 Aggregate cell-level effects to average treatment effects on the treated.
 
 ```r
-atet(model, type = c("overall", "byexposure", "bycalendar",
-                     "bycohort", "bygroup", "byget"),
-     values = NULL, for_expr = NULL,
-     aggregationweight = NULL, test = NULL, level = 95)
+atet(
+  model,
+  type = c("overall", "byexposure", "bycalendar",
+    "bycohort", "bygroup", "byget"),
+  values = NULL,
+  for_expr = NULL,
+  aggregationweight = NULL,
+  test = NULL,
+  level = 95
+)
 ```
 
 | Argument | Description |
