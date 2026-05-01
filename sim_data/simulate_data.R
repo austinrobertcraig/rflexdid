@@ -1,4 +1,4 @@
-# Simulated dataset for the rflexdid demo vignette.
+# Simulated dataset for the rflexdid demo vignette and Stata-reference tests.
 #
 # Setting: counties enact a sugar-sweetened-beverage (SSB) excise tax in
 # different years. Each year an annual BRFSS-style survey draws a fresh
@@ -12,11 +12,11 @@
 # of simulate_flexdid_data() for the exact functional form.
 #
 # Usage:
-#   source("examples/simulate_data.R")
+#   source(here::here("sim_data", "simulate_data.R"))
 #   df <- simulate_flexdid_data()
 #
-#   # or, write a CSV to the current working directory:
-#   Rscript examples/simulate_data.R
+#   # or, regenerate the committed CSV from the repo root:
+#   Rscript sim_data/simulate_data.R
 
 simulate_flexdid_data <- function(n_counties = 40,
                                   years      = 2010:2019,
@@ -72,9 +72,11 @@ simulate_flexdid_data <- function(n_counties = 40,
            "age", "female", "region", "ssb_oz")]
 }
 
-# When run via `Rscript examples/simulate_data.R`, write a CSV to the cwd.
+# When run via `Rscript sim_data/simulate_data.R`, write the CSV into sim_data/.
+# `here::here()` resolves the repo root regardless of the caller's cwd.
 if (sys.nframe() == 0L) {
+  out_path <- here::here("sim_data", "example_data.csv")
   df <- simulate_flexdid_data()
-  utils::write.csv(df, "example_data.csv", row.names = FALSE)
-  message("wrote ", nrow(df), " rows to example_data.csv")
+  utils::write.csv(df, out_path, row.names = FALSE)
+  message("wrote ", nrow(df), " rows to ", out_path)
 }

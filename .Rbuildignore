@@ -9,3 +9,7 @@
 ^\.git$
 ^\.DS_Store$
 ^tests/benchmarks$
+^tests/run_tests\.R$
+^tests/test_results\.txt$
+^sim_data$
+^examples$

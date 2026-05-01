@@ -152,39 +152,57 @@ influence-function form that mirrors Stata's `margins, vce(unconditional)`
 
 ## Validating against Stata
 
-To regenerate the reference CSVs that the testthat suite compares against,
-run once from a Stata installation that has `flexdid` (>= v2.0):
+The Stata-reference tests compare R output against CSVs produced by the
+original Stata `flexdid` command (>= v2.0) on the same simulated dataset
+([`sim_data/example_data.csv`](sim_data/example_data.csv), regenerated
+deterministically from [`sim_data/simulate_data.R`](sim_data/simulate_data.R)).
+
+To regenerate the reference CSVs, on a machine with Stata:
+
+```stata
+do path/to/r-flexdid/tests/testthat/stata_reference/make-stata-reference.do
+```
+
+The do-file is working-directory independent — it resolves the repo root
+from its own path, so it can be run from anywhere inside Stata. If
+`sim_data/example_data.csv` is missing, regenerate it first with:
 
 ```bash
-cd ~/GitHub/rflexdid
-stata-mp -b do data-raw/make-stata-reference.do
+Rscript sim_data/simulate_data.R
 ```
 
-Then, in R:
+Then run the test suite. The recommended invocation is the wrapper script,
+which mirrors progress to the console and writes a detailed log to
+[`tests/test_results.txt`](tests/test_results.txt):
 
-```r
-devtools::test()
+```bash
+Rscript tests/run_tests.R
 ```
 
-Without the CSVs the Stata-reference tests skip; the internal numerical
-tests (24 of them) run regardless.
+`devtools::test()` from R also still works. Without the reference CSVs, the
+Stata-reference tests skip cleanly; the internal numerical tests run
+regardless.
 
 ## Testing
 
-The package has 54 tests across two suites:
+The package has two test suites:
 
-- **Internal tests** — verify numerical correctness on synthetic panels without
-  requiring Stata. Checks include: OLS coefficients matching `lm()` to
-  machine precision, ATET aggregation identities, influence-function SE
-  formulas, Wald test statistics, and `for_expr` subgroup subsetting.
+- **Internal tests** ([`test-cohort.R`](tests/testthat/test-cohort.R),
+  [`test-flexdid-internal.R`](tests/testthat/test-flexdid-internal.R)) —
+  verify numerical correctness on synthetic panels without requiring Stata.
+  Checks include: OLS coefficients matching `lm()` to machine precision, ATET
+  aggregation identities, influence-function SE formulas, Wald test
+  statistics, and `for_expr` subgroup subsetting.
 
-- **Stata-reference tests** — compare point estimates and standard errors
-  directly against output produced by the original Stata `flexdid` command on
-  the `hhabits` example dataset. Coverage spans all six ATET aggregation types
-  (`overall`, `byexposure`, `bycalendar`, `bycohort`, `bygroup`, `byget`) and
-  both specifications (`lagsonly` and `lagsandleads`), as well as the underlying
-  regression coefficients. These tests skip automatically if the reference CSVs
-  are not present.
+- **Stata-reference tests**
+  ([`test-stata-reference.R`](tests/testthat/test-stata-reference.R)) —
+  compare point estimates and standard errors against output produced by the
+  original Stata `flexdid` command run on the simulated dataset in
+  [`sim_data/example_data.csv`](sim_data/example_data.csv). Coverage spans
+  all six ATET aggregation types (`overall`, `byexposure`, `bycalendar`,
+  `bycohort`, `bygroup`, `byget`) and both specifications (`lagsonly` and
+  `lagsandleads`), as well as the underlying regression coefficients. These
+  tests skip automatically if the reference CSVs are not present.
 
 ## References
 

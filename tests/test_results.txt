@@ -1,0 +1,26 @@
+cohort: .............
+flexdid-internal: ...........
+stata-reference: SSSSSSSSSS
+
+══ Skipped ═════════════════════════════════════════════════════════════════════
+1. lagsandleads coefficients match Stata reference ('test-stata-reference.R:47:5') - Reason: Stata reference CSV not present.
+
+2. lagsonly cell coefficients match Stata reference ('test-stata-reference.R:67:5') - Reason: Stata reference CSV not present.
+
+3. Overall ATET (lagsandleads) matches Stata reference ('test-stata-reference.R:89:5') - Reason: Stata reference CSV not present.
+
+4. byexposure ATET (lagsandleads) matches Stata reference ('test-stata-reference.R:99:5') - Reason: Stata reference CSV not present.
+
+5. bycalendar ATET (lagsandleads) matches Stata reference ('test-stata-reference.R:115:5') - Reason: Stata reference CSV not present.
+
+6. bycohort ATET (lagsandleads) matches Stata reference ('test-stata-reference.R:131:5') - Reason: Stata reference CSV not present.
+
+7. bygroup ATET (lagsandleads) matches Stata reference ('test-stata-reference.R:147:5') - Reason: Stata reference CSV not present.
+
+8. byget ATET (lagsandleads) matches Stata reference ('test-stata-reference.R:163:5') - Reason: Stata reference CSV not present.
+
+9. Overall ATET (lagsonly) matches Stata reference ('test-stata-reference.R:186:5') - Reason: Stata reference CSV not present.
+
+10. byexposure ATET (lagsonly) matches Stata reference ('test-stata-reference.R:196:5') - Reason: Stata reference CSV not present.
+
+══ DONE ════════════════════════════════════════════════════════════════════════
