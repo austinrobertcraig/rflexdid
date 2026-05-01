@@ -10,6 +10,8 @@ resulting cell-level effects to ATETs (overall, by exposure time, by calendar
 time, by cohort, by group, or by group × exposure time). Standard errors
 match Stata's `vce(unconditional)` via influence functions.
 
+For example usage, see [`examples/rflexdid_demo.md`](examples/rflexdid_demo.md).
+
 ## Install
 
 This package is not on CRAN. Install once from this GitHub repo:
@@ -172,16 +174,14 @@ Rscript sim_data/simulate_data.R
 ```
 
 Then run the test suite. The recommended invocation is the wrapper script,
-which mirrors progress to the console and writes a detailed log to
+which mirrors progress to the console and writes a log to
 [`tests/test_results.txt`](tests/test_results.txt):
 
 ```bash
 Rscript tests/run_tests.R
 ```
 
-`devtools::test()` from R also still works. Without the reference CSVs, the
-Stata-reference tests skip cleanly; the internal numerical tests run
-regardless.
+`devtools::test()` from R also still works. Without the reference CSVs, the Stata-reference tests skip cleanly; the internal numerical tests run regardless.
 
 ## Testing
 
