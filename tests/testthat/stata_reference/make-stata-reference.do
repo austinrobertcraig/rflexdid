@@ -253,7 +253,12 @@ program define dump_atet_bycohort
     forvalues i = 1/`k' {
         local nm : word `i' of `names'
         * Stata's bycohort label is an ordinal integer: 1, 2, 3, ...
-        local ord = real(regexs(0)) if regexm("`nm'", "-?[0-9]+")
+        if regexm("`nm'", "-?[0-9]+") {
+            local ord = real(regexs(0))
+        }
+        else {
+            local ord ""
+        }
         if "`ord'" != "" & `ord' >= 1 {
             local val : word `ord' of `cohort_vals'
             if "`val'" != "" {
