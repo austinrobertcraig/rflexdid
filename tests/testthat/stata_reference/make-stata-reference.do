@@ -2,8 +2,11 @@
 *
 * Run this once on a machine with Stata >= 16 and the `flexdid` command (>= v2.0)
 * to produce the reference CSVs that the testthat suite compares against.
-* The script is robust to the working directory: it resolves the repo root
-* from `c(do_file)` and `cd`s there before reading or writing anything.
+* The script resolves the repo root without requiring any machine-specific paths.
+* It first tries c(do_file) (set when you type `do file.do` in the Command window),
+* then walks upward from c(pwd) looking for the R-package DESCRIPTION file.
+* The walk-up approach works from the do-file editor (Do button / Ctrl+D) as long
+* as Stata's working directory is anywhere inside the repo.
 *
 * Inputs:
 *   inst/extdata/example_data.csv  (regenerate with: devtools::load_all(); simulate_flexdid_data())
@@ -20,23 +23,54 @@
 *   tests/testthat/stata_reference/atet_overall_lagsonly.csv  (b, se)
 *   tests/testthat/stata_reference/atet_byexposure_lagsonly.csv (eventtime, b, se)
 *
-* Usage (from anywhere inside Stata):
-*     do path/to/r-flexdid/tests/testthat/stata_reference/make-stata-reference.do
+* Usage (no machine-specific setup needed):
+*   - Open the file in the do-file editor and click Do / Ctrl+D, OR
+*   - Type in the Command window: do path/to/make-stata-reference.do
+*
+* If the walk-up fails (Stata's working directory is outside the repo), cd to
+* the repo root first:
+*     cd path/to/r-flexdid
 
 clear all
 set more off
 
-* ---------- Resolve repo root from this do-file's path ----------
-local do_path = `"`c(do_file)'"'
-if `"`do_path'"' == "" {
-    display as error "ERROR: c(do_file) is empty (Stata < 16). Upgrade Stata or run from the repo root and adjust paths manually."
+* ---------- Resolve repo root ----------
+* Strategy 1: c(do_file) — reliable when typed as `do file.do` in the Command window.
+* Strategy 2: walk upward from c(pwd) looking for the R-package DESCRIPTION file.
+*   This handles the do-file editor (Do button / Ctrl+D), which does not set c(do_file).
+local repo_root ""
+
+local do_path `"`c(do_file)'"'
+local do_path = subinstr(`"`do_path'"', "\", "/", .)
+if `"`do_path'"' != "" {
+    local repo_root = subinstr(`"`do_path'"', "/tests/testthat/stata_reference/make-stata-reference.do", "", 1)
+}
+
+if `"`repo_root'"' == "" | `"`repo_root'"' == `"`do_path'"' {
+    * c(do_file) was empty or the suffix wasn't found; walk up from c(pwd).
+    local searchdir `"`c(pwd)'"'
+    local searchdir = subinstr(`"`searchdir'"', "\", "/", .)
+    forvalues _lvl = 1/20 {
+        capture confirm file `"`searchdir'/DESCRIPTION"'
+        if !_rc {
+            local repo_root `"`searchdir'"'
+            continue, break
+        }
+        local newdir = regexr(`"`searchdir'"', "/[^/]+$", "")
+        if `"`newdir'"' == `"`searchdir'"' | `"`newdir'"' == "" {
+            continue, break
+        }
+        local searchdir `"`newdir'"'
+    }
+}
+
+if `"`repo_root'"' == "" {
+    display as error "ERROR: could not locate the repo root."
+    display as error "  Stata's working directory must be somewhere inside the r-flexdid repo."
+    display as error "  Fix: cd to the repo root, then click Do again."
     exit 198
 }
-* Normalize Windows backslashes to forward slashes for portable string ops.
-local do_path = subinstr(`"`do_path'"', "\", "/", .)
-* Strip "/tests/testthat/stata_reference/make-stata-reference.do" off the end
-* to get the repo root.
-local repo_root = subinstr(`"`do_path'"', "/tests/testthat/stata_reference/make-stata-reference.do", "", 1)
+
 cd `"`repo_root'"'
 display as text "Repo root: " `"`repo_root'"'
 
