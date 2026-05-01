@@ -35,8 +35,14 @@ sink()
 close(log_con)
 on.exit()
 
+df       <- as.data.frame(result)
+n_pass   <- sum(df$passed)
+n_fail   <- sum(df$failed) + sum(df$error)
+n_skip   <- sum(df$skipped)
+
+cat(sprintf("\n%d passed, %d failed, %d skipped\n", n_pass, n_fail, n_skip),
+    file = out_path, append = TRUE)
+
 message("Detailed results written to ", out_path)
 
-df <- as.data.frame(result)
-n_failed <- sum(df$failed) + sum(df$error)
-if (n_failed > 0L) quit(status = 1L)
+if (n_fail > 0L) quit(status = 1L)

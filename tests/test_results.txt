@@ -24,3 +24,5 @@ stata-reference: SSSSSSSSSS
 10. byexposure ATET (lagsonly) matches Stata reference ('test-stata-reference.R:196:5') - Reason: Stata reference CSV not present.
 
 ══ DONE ════════════════════════════════════════════════════════════════════════
+
+24 passed, 0 failed, 10 skipped
