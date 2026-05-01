@@ -11,3 +11,5 @@
 ^tests/benchmarks$
 ^tests/run_tests\.R$
 ^tests/test_results\.txt$
+^vignettes/rflexdid_demo\.md$
+^vignettes/figure$

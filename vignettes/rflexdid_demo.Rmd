@@ -7,6 +7,14 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
+<!--
+To regenerate rflexdid_demo.md (the GitHub-rendered version) after editing:
+
+    cd vignettes && Rscript -e 'knitr::knit("rflexdid_demo.Rmd", output = "rflexdid_demo.md")'
+
+Then commit rflexdid_demo.md and figure/ alongside this file.
+-->
+
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 ```
