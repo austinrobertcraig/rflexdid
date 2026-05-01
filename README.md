@@ -10,7 +10,7 @@ resulting cell-level effects to ATETs (overall, by exposure time, by calendar
 time, by cohort, by group, or by group × exposure time). Standard errors
 match Stata's `vce(unconditional)` via influence functions.
 
-For example usage, see [`examples/rflexdid_demo.md`](examples/rflexdid_demo.md).
+For example usage, see the [rflexdid demo vignette](vignettes/rflexdid_demo.Rmd).
 
 ## Install
 
