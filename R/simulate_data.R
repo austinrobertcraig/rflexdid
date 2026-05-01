@@ -1,4 +1,4 @@
-# Simulated dataset for the rflexdid demo vignette and Stata-reference tests.
+# Simulate dataset for the rflexdid demo vignette and Stata-reference tests.
 #
 # Setting: counties enact a sugar-sweetened-beverage (SSB) excise tax in
 # different years. Each year an annual BRFSS-style survey draws a fresh
