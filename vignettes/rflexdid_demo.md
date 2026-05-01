@@ -388,11 +388,11 @@ treatment effects depend on sex.
 
 
 ``` r
-atet(fit, type = "byexposure", for_expr = quote(female == 1))
+atet(fit, type = "byexposure", for_expr = ~ female == 1)
 ```
 
 ```
-## ATET by exposure time for `female == 1`
+## ATET by exposure time for `~female == 1`
 ## Observations: 20000 | ATET sample: 7454
 ## Aggregation weight: obslevel
 ## 
