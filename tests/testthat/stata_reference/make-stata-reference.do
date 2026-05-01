@@ -6,7 +6,7 @@
 * from `c(do_file)` and `cd`s there before reading or writing anything.
 *
 * Inputs:
-*   sim_data/example_data.csv  (regenerate with: Rscript sim_data/simulate_data.R)
+*   inst/extdata/example_data.csv  (regenerate with: devtools::load_all(); simulate_flexdid_data())
 *
 * Outputs (overwritten):
 *   tests/testthat/stata_reference/coefs_lagsandleads.csv     (g, t, kind, b, se)
@@ -43,10 +43,10 @@ display as text "Repo root: " `"`repo_root'"'
 capture which flexdid
 if _rc ssc install flexdid
 
-capture confirm file "sim_data/example_data.csv"
+capture confirm file "inst/extdata/example_data.csv"
 if _rc {
-    display as error "ERROR: sim_data/example_data.csv not found."
-    display as error "  Regenerate it from R first: Rscript sim_data/simulate_data.R"
+    display as error "ERROR: inst/extdata/example_data.csv not found."
+    display as error "  Regenerate it from R first: devtools::load_all(); simulate_flexdid_data()"
     exit 601
 }
 
@@ -56,7 +56,7 @@ capture mkdir "tests/testthat"
 capture mkdir "`OUT_REF'"
 
 * ---------- Load the simulated data ----------
-import delimited "sim_data/example_data.csv", clear stringcols(_all)
+import delimited "inst/extdata/example_data.csv", clear stringcols(_all)
 * All columns import as strings because of the factor `region`. Coerce the
 * numeric ones back to numeric.
 foreach v in county year cohort treated age female ssb_oz {

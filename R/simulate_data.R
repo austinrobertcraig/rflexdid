@@ -11,13 +11,11 @@
 # and consumption falls smoothly with exposure time). See the docstring
 # of simulate_flexdid_data() for the exact functional form.
 #
-# Usage:
-#   source(here::here("sim_data", "simulate_data.R"))
-#   df <- simulate_flexdid_data()
-#
-#   # or, regenerate the committed CSV from the repo root:
-#   Rscript sim_data/simulate_data.R
+# Usage (from the package root):
+#   devtools::load_all()
+#   simulate_flexdid_data()   # writes inst/extdata/example_data.csv
 
+#' @noRd
 simulate_flexdid_data <- function(n_counties = 40,
                                   years      = 2010:2019,
                                   cohorts    = c(2013, 2015, 2017, 0),
@@ -37,8 +35,8 @@ simulate_flexdid_data <- function(n_counties = 40,
 
   # 3. Individual-level covariates (drawn fresh per row).
   N <- nrow(grid)
-  grid$age    <- pmin(80, pmax(18, rnorm(N, mean = 40, sd = 15)))
-  grid$female <- rbinom(N, 1, 0.5)
+  grid$age    <- pmin(80, pmax(18, stats::rnorm(N, mean = 40, sd = 15)))
+  grid$female <- stats::rbinom(N, 1, 0.5)
 
   # 4. County-level region (constant within county).
   region_assign <- sample(1:4, n_counties, replace = TRUE)
@@ -62,21 +60,18 @@ simulate_flexdid_data <- function(n_counties = 40,
     -0.04 * (grid$age - 40) +
     -1.50 * grid$female +
      tau +
-     rnorm(N, sd = 3.0)
+     stats::rnorm(N, sd = 3.0)
 
   # Drop the helper person index (repeated cross section, no individual id).
   grid$person <- NULL
 
   # Reorder columns so the panel "skeleton" is up front.
-  grid[, c("county", "year", "cohort", "treated",
-           "age", "female", "region", "ssb_oz")]
-}
+  df <- grid[, c("county", "year", "cohort", "treated",
+                 "age", "female", "region", "ssb_oz")]
 
-# When run via `Rscript sim_data/simulate_data.R`, write the CSV into sim_data/.
-# `here::here()` resolves the repo root regardless of the caller's cwd.
-if (sys.nframe() == 0L) {
-  out_path <- here::here("sim_data", "example_data.csv")
-  df <- simulate_flexdid_data()
+  out_path <- "inst/extdata/example_data.csv"
+  dir.create(dirname(out_path), recursive = TRUE, showWarnings = FALSE)
   utils::write.csv(df, out_path, row.names = FALSE)
   message("wrote ", nrow(df), " rows to ", out_path)
+  invisible(NULL)
 }

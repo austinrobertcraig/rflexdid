@@ -25,7 +25,6 @@ Imports:
 Suggests:
     fixest,
     ggplot2,
-    here,
     knitr,
     rmarkdown,
     testthat (>= 3.0.0)

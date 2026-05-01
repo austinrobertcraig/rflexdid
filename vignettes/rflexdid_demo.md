@@ -7,6 +7,16 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
+<!--
+To regenerate rflexdid_demo.md (the GitHub-rendered version) after editing:
+
+    Rscript -e 'devtools::install(quiet=TRUE); setwd("vignettes"); knitr::knit("rflexdid_demo.Rmd", output = "rflexdid_demo.md")'
+
+Run from the package root. devtools::install() is required so that
+system.file("extdata", ..., package = "rflexdid") resolves correctly.
+Then commit rflexdid_demo.md and figure/ alongside this file.
+-->
+
 
 
 # Demonstrating rflexdid on simulated data
@@ -31,10 +41,8 @@ enacted larger taxes, and consumption keeps falling with longer exposure.
 ``` r
 library(rflexdid)
 library(ggplot2)
-library(here)
 library(fixest)
-source(here("sim_data", "simulate_data.R"))
-df <- simulate_flexdid_data()
+df <- read.csv(system.file("extdata", "example_data.csv", package = "rflexdid"))
 head(df)
 ```
 

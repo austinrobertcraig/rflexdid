@@ -1,7 +1,7 @@
 # Tests that compare R output to the Stata reference CSVs produced by
 # tests/testthat/stata_reference/make-stata-reference.do. Both R and Stata read the same simulated
-# dataset (sim_data/example_data.csv, regenerated deterministically from
-# sim_data/simulate_data.R), so these tests verify R/Stata agreement to
+# dataset (inst/extdata/example_data.csv, regenerated deterministically via
+# simulate_flexdid_data()), so these tests verify R/Stata agreement to
 # numerical tolerance with no quirk-handling for export-format artifacts.
 #
 # Tests skip when reference CSVs are absent (e.g. on machines without Stata).
@@ -19,13 +19,9 @@ read_ref <- function(name) {
 }
 
 sim_data <- function() {
-  src <- test_path("..", "..", "sim_data", "simulate_data.R")
-  if (!file.exists(src)) {
-    skip("sim_data/simulate_data.R not present.")
-  }
-  env <- new.env(parent = globalenv())
-  source(src, local = env)
-  env$simulate_flexdid_data()
+  path <- system.file("extdata", "example_data.csv", package = "rflexdid")
+  if (!nzchar(path)) skip("inst/extdata/example_data.csv not present.")
+  read.csv(path)
 }
 
 fit_lagsandleads <- function(d) {

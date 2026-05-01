@@ -156,8 +156,8 @@ influence-function form that mirrors Stata's `margins, vce(unconditional)`
 
 The Stata-reference tests compare R output against CSVs produced by the
 original Stata `flexdid` command (>= v2.0) on the same simulated dataset
-([`sim_data/example_data.csv`](sim_data/example_data.csv), regenerated
-deterministically from [`sim_data/simulate_data.R`](sim_data/simulate_data.R)).
+([`inst/extdata/example_data.csv`](inst/extdata/example_data.csv), regenerated
+deterministically from [`R/simulate_data.R`](R/simulate_data.R)).
 
 To regenerate the reference CSVs, on a machine with Stata:
 
@@ -167,10 +167,11 @@ do path/to/r-flexdid/tests/testthat/stata_reference/make-stata-reference.do
 
 The do-file is working-directory independent — it resolves the repo root
 from its own path, so it can be run from anywhere inside Stata. If
-`sim_data/example_data.csv` is missing, regenerate it first with:
+`inst/extdata/example_data.csv` is missing, regenerate it first with:
 
-```bash
-Rscript sim_data/simulate_data.R
+```r
+devtools::load_all()
+simulate_flexdid_data()
 ```
 
 Then run the test suite. The recommended invocation is the wrapper script,
@@ -198,7 +199,7 @@ The package has two test suites:
   ([`test-stata-reference.R`](tests/testthat/test-stata-reference.R)) —
   compare point estimates and standard errors against output produced by the
   original Stata `flexdid` command run on the simulated dataset in
-  [`sim_data/example_data.csv`](sim_data/example_data.csv). Coverage spans
+  [`inst/extdata/example_data.csv`](inst/extdata/example_data.csv). Coverage spans
   all six ATET aggregation types (`overall`, `byexposure`, `bycalendar`,
   `bycohort`, `bygroup`, `byget`) and both specifications (`lagsonly` and
   `lagsandleads`), as well as the underlying regression coefficients. These
