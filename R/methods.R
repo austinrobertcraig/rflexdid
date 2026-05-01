@@ -166,12 +166,12 @@ plot.flexdid_atet <- function(x, ...) {
 
   xlab <- switch(x$type,
     byexposure = "Exposure time",
-    bycalendar = "Calendar time",
+    bycalendar = "Time period",
     bycohort   = "Treated cohort",
     bygroup    = "Treated group",
     byget      = "Group X exposure time"
   )
-  ylab <- paste0("Delta ", x$yvar %||% "outcome")
+  ylab <- "Average treatment effect"
 
   p <- ggplot2::ggplot(d, ggplot2::aes(x = .data[[".label_num"]],
                                         y = .data[["Estimate"]]))
@@ -192,6 +192,9 @@ plot.flexdid_atet <- function(x, ...) {
   p +
     ggplot2::geom_hline(yintercept = 0, linetype = "dashed") +
     ggplot2::labs(x = xlab, y = ylab) +
+    ggplot2::scale_x_continuous(
+      breaks = unique(d$.label_num[!is.na(d$.label_num)])
+    ) +
     ggplot2::theme_minimal()
 }
 
