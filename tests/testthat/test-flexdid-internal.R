@@ -77,10 +77,13 @@ test_that("for_expr restricts the subpopulation", {
   df <- make_panel()
   fit <- flexdid(bmi ~ x1, data = df, tx = "hhabit", group = "schools",
                  time = "year", specification = "lagsonly", vcov = "robust")
-  a_all <- atet(fit, type = "overall")
-  a_sub <- atet(fit, type = "overall", for_expr = quote(x1 > 0))
+  a_all  <- atet(fit, type = "overall")
+  a_sub  <- atet(fit, type = "overall", for_expr = ~ x1 > 0)
+  a_sub2 <- atet(fit, type = "overall", for_expr = quote(x1 > 0))
   expect_lt(a_sub$n_sub, a_all$n_sub)
   expect_true(is.numeric(as.numeric(a_sub$estimate)))
+  expect_equal(as.numeric(a_sub$estimate), as.numeric(a_sub2$estimate))
+  expect_equal(a_sub$n_sub, a_sub2$n_sub)
 })
 
 test_that("plot returns a ggplot for byexposure", {

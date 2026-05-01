@@ -29,9 +29,10 @@
 #'   `"bycohort"`, or `"bygroup"`.
 #' @param values Optional numeric vector restricting which levels are
 #'   reported. Semantics differ by `type` (see Details).
-#' @param for_expr Optional unevaluated expression or one-sided formula
-#'   restricting the subpopulation, e.g. `quote(girl == 1)`. Evaluated in
-#'   the modeling data.
+#' @param for_expr Optional one-sided formula restricting the subpopulation,
+#'   e.g. `~ female == 1`. Multiple conditions can be combined with `&` or `|`
+#'   (e.g. `~ female == 1 & age > 10`). A `quote()`-style unevaluated
+#'   expression is also accepted. Evaluated in the modeling data.
 #' @param dydx Logical; included for API parity with Stata. The R
 #'   implementation uses the same gradient-based contrast in either case,
 #'   so this flag is ignored.

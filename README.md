@@ -122,7 +122,7 @@ atet(
 | `model` | A `flexdid` object returned by `flexdid()`. |
 | `type` | Aggregation type. `"overall"` collapses all post-treatment cells to a single ATET; `"byexposure"` reports one ATET per event time; `"bycalendar"` by calendar period; `"bycohort"` by cohort; `"bygroup"` by group; `"byget"` by group × event time. |
 | `values` | Numeric vector restricting which event times (for `"overall"`, `"byexposure"`, `"byget"`) or calendar periods (for `"bycalendar"`) to include. Defaults to all observed post-treatment values (all event times for `"lagsandleads"`). |
-| `for_expr` | Unevaluated expression (e.g. `quote(girl == 1)`) or one-sided formula restricting the subpopulation over which the ATET is averaged. Equivalent to Stata's `for(...)` option. |
+| `for_expr` | One-sided formula (e.g. `~ female == 1`) restricting the subpopulation over which the ATET is averaged. Multiple conditions can be combined with `&` or `|` (e.g. `~ female == 1 & age > 10`). A `quote()`-style unevaluated expression is also accepted. Equivalent to Stata's `for(...)` option. |
 | `aggregationweight` | `"grouplevel"` to weight cells by group size rather than individual observations, matching Stata's `aggregationweight(grouplevel)`. |
 | `test` | `"zero"` to test H₀: all ATETs = 0; `"equal"` to test H₀: all ATETs are equal. Both use a Wald F-test. |
 | `level` | Confidence level for the tidy table (default 95). |
@@ -131,20 +131,20 @@ Returns a `flexdid_atet` object with components `estimate`, `vcov`, `tidy_table`
 
 ## Mapping from Stata to R
 
-| Stata                                               | R                                                        |
-|-----------------------------------------------------|----------------------------------------------------------|
-| `flexdid bmi, tx(hhabit) group(s) time(year)`       | `flexdid(bmi ~ 1, data, tx="hhabit", group="s", time="year")` |
-| `flexdid bmi medu girl, ...`                        | `flexdid(bmi ~ medu + girl, ...)`                        |
-| `specification(lagsandleads)`                       | `specification = "lagsandleads"`                         |
-| `xnotinteracted(medu i.s)`                          | `xnotinteracted = ~ medu + factor(s)`                    |
-| `usercohort(chrt)`                                  | `usercohort = "chrt"`                                    |
-| `vce(cluster s)`                                    | `vcov = "cluster", cluster = "s"`                        |
-| `[pweight=w]`                                       | `weights = "w"`                                          |
-| `estat atet, overall`                               | `atet(fit, type = "overall")`                            |
-| `estat atet, byexposure(0/3) test(zero)`            | `atet(fit, type = "byexposure", values = 0:3, test = "zero")` |
-| `estat atet, byexposure for(girl==1)`               | `atet(fit, type = "byexposure", for_expr = quote(girl==1))` |
-| `estat atet, byget`                                 | `atet(fit, type = "byget")`                              |
-| `aggregationweight(grouplevel)`                     | `aggregationweight = "grouplevel"`                       |
+| Stata                                                    | R                                                             |
+|----------------------------------------------------------|---------------------------------------------------------------|
+| `flexdid ssb_oz, tx(treated) group(county) time(year)`  | `flexdid(ssb_oz ~ 1, data, tx="treated", group="county", time="year")` |
+| `flexdid ssb_oz age female, ...`                        | `flexdid(ssb_oz ~ age + female, ...)`                         |
+| `specification(lagsandleads)`                            | `specification = "lagsandleads"`                              |
+| `xnotinteracted(region)`                                 | `xnotinteracted = ~ region`                                   |
+| `usercohort(cohort)`                                     | `usercohort = "cohort"`                                       |
+| `vce(cluster county)`                                    | `vcov = "cluster", cluster = "county"`                        |
+| `[pweight=w]`                                            | `weights = "w"`                                               |
+| `estat atet, overall`                                    | `atet(fit, type = "overall")`                                 |
+| `estat atet, byexposure(0/3) test(zero)`                | `atet(fit, type = "byexposure", values = 0:3, test = "zero")` |
+| `estat atet, byexposure for(female==1)`                 | `atet(fit, type = "byexposure", for_expr = ~ female == 1)`    |
+| `estat atet, byget`                                      | `atet(fit, type = "byget")`                                   |
+| `aggregationweight(grouplevel)`                          | `aggregationweight = "grouplevel"`                            |
 
 The R object returned by `flexdid()` carries the full design matrix and
 sample-aligned vectors needed by `atet()`. `summary()`, `coef()`, `vcov()`,

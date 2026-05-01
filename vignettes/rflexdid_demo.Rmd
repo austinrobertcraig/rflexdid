@@ -213,7 +213,7 @@ should be close to the overall estimate, since the DGP doesn't make
 treatment effects depend on sex.
 
 ```{r for_expr}
-atet(fit, type = "byexposure", for_expr = quote(female == 1))
+atet(fit, type = "byexposure", for_expr = ~ female == 1)
 ```
 
 ## Non-interacted controls (`xnotinteracted`)
