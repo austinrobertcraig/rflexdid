@@ -1,7 +1,7 @@
 Package: rflexdid
 Type: Package
 Title: Flexible Difference-in-Differences with Staggered Treatment Timing
-Version: 0.1.0
+Version: 1.0.0
 Authors@R:
     person("Austin", "Craig", email = "austinrobertcraig@gmail.com",
            role = c("aut", "cre"))
@@ -10,8 +10,7 @@ Description: R port of the Stata 'flexdid' command (Deb, Norton, Wooldridge,
     group by time by treatment interactions for staggered-timing
     difference-in-differences designs, then aggregates the resulting
     cell-level effects to ATETs (overall, by exposure time, by calendar
-    time, by cohort, by group, or by group X exposure time). Standard
-    errors match Stata's vce(unconditional) via influence functions.
+    time, by cohort, by group, or by group X exposure time).
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: false
