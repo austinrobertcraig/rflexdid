@@ -158,38 +158,6 @@ sandwich formulas as Stata's `regress, vce(robust)` and
 influence-function form that mirrors Stata's `margins, vce(unconditional)`
 — see [R/atet.R](R/atet.R) for the explicit formula.
 
-## Validating against Stata
-
-The Stata-reference tests compare R output against CSVs produced by the
-original Stata `flexdid` command (>= v2.0) on the same simulated dataset
-([`inst/extdata/example_data.csv`](inst/extdata/example_data.csv), regenerated
-deterministically from [`R/simulate_data.R`](R/simulate_data.R)).
-
-To regenerate the reference CSVs, on a machine with Stata:
-
-```stata
-do path/to/r-flexdid/tests/testthat/stata_reference/make-stata-reference.do
-```
-
-The do-file is working-directory independent — it resolves the repo root
-from its own path, so it can be run from anywhere inside Stata. If
-`inst/extdata/example_data.csv` is missing, regenerate it first with:
-
-```r
-devtools::load_all()
-simulate_flexdid_data()
-```
-
-Then run the test suite. The recommended invocation is the wrapper script,
-which mirrors progress to the console and writes a log to
-[`tests/test_results.txt`](tests/test_results.txt):
-
-```bash
-Rscript tests/run_tests.R
-```
-
-`devtools::test()` from R also still works. Without the reference CSVs, the Stata-reference tests skip cleanly; the internal numerical tests run regardless.
-
 ## Testing
 
 The package has two test suites:
@@ -210,6 +178,30 @@ The package has two test suites:
   `bycohort`, `bygroup`, `byget`) and both specifications (`lagsonly` and
   `lagsandleads`), as well as the underlying regression coefficients. These
   tests skip automatically if the reference CSVs are not present.
+
+The recommended invocation is the wrapper script, which mirrors progress to
+the console and writes a log to [`tests/test_results.txt`](tests/test_results.txt):
+
+```bash
+Rscript tests/run_tests.R
+```
+
+`devtools::test()` from R also still works.
+
+**Regenerating Stata reference CSVs.** On a machine with Stata:
+
+```stata
+do path/to/r-flexdid/tests/testthat/stata_reference/make-stata-reference.do
+```
+
+The do-file is working-directory independent — it resolves the repo root from
+its own path. If [`inst/extdata/example_data.csv`](inst/extdata/example_data.csv)
+is missing, regenerate it first:
+
+```r
+devtools::load_all()
+simulate_flexdid_data()
+```
 
 ## References
 
