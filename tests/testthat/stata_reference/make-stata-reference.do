@@ -99,16 +99,33 @@ foreach v in county year cohort treated age female ssb_oz {
 }
 
 * ---------- Helpers ----------
-* dump_coefs <fname>: write (g, t, kind, b, se) for each treatment-cell column.
-* Treatment cells are the indicator-only columns of e(b) whose names match
-* "<cohort>...<groupvar>#<year>...._Tx" (no further "#<xvar>" suffix).
+* dump_coefs <fname> <groupvar> <timevar>: write (g, t, kind, b, se) for each
+* treatment-cell column of e(b). Stata's factor-variable expansion drops the
+* level marker for the lowest level of each component variable, so the colname
+* "2013._Cohort#2013.cohort#2013.year#1._Tx" can appear in any of these forms:
+*   2013._Cohort#2013.cohort#2013.year#1._Tx   (full)
+*    _Cohort#2013.cohort#2013.year#1._Tx       (cohort=base treated cohort)
+*   2013._Cohort#2013.cohort#1._Tx             (year=base year)
+*    _Cohort#2013.cohort#1._Tx                 (both base)
+* Position-based numeric-token counting can't handle the missing tokens, so
+* we extract by KEYWORD anchor instead: pull the integer preceding `._Cohort`,
+* `.<groupvar>`, and `.<timevar>` (a `bn|b|o` factor modifier may attach to
+* any of them and is captured-and-discarded). Missing tokens fall back to the
+* corresponding base level pulled from the data.
 capture program drop dump_coefs
 program define dump_coefs
-    args fname groupvar
+    args fname groupvar timevar
     matrix B = e(b)
     matrix V = e(V)
     local k = colsof(B)
     local names : colnames B
+
+    * Base levels Stata may omit from colnames.
+    quietly summarize _Cohort if _Cohort > 0
+    local base_c = r(min)
+    quietly summarize `timevar'
+    local base_t = r(min)
+
     preserve
     clear
     set obs `k'
@@ -124,53 +141,25 @@ program define dump_coefs
         quietly replace b     = B[1, `i'] in `i'
         quietly replace se    = sqrt(V[`i', `i']) in `i'
     }
-    * Keep indicator-only treatment cells:
-    *   - contain "_Cohort#"
-    *   - end with "._Tx" (no covariate-interaction "#" after _Tx)
+    * Keep indicator-only treatment cells: contain "_Cohort#" and don't have a
+    * covariate interaction past _Tx (which would show up as "_Tx#").
     keep if regexm(_name, "_Cohort#") & !regexm(_name, "_Tx#")
-    * Extract the three leading numeric tokens: cohort, group, year.
-    gen str120 _nums = _name
-    quietly replace _nums = subinstr(_nums, ".", " ", .)
-    quietly replace _nums = subinstr(_nums, "#", " ", .)
-    * Drop Stata factor modifiers (bn, b, o) attached to numbers. regexr
-    * replaces only the first match per call; up to four modifiers may appear
-    * (cohort, group, year, _Tx), so iterate enough times to clear all of them.
-    forvalues _pass = 1/6 {
-        quietly replace _nums = regexr(_nums, "([0-9])(bn|b|o)", "$1")
-    }
-    * Now _nums looks like: "<cohort>  _Cohort <group> `groupvar' <year> year 1 _Tx"
-    * Replace any non-numeric tokens with spaces, then split.
-    gen double _cohort = real(word(_nums, 1))
-    * The group-value token is the third word once non-numeric words are skipped;
-    * easier: enumerate words and pull the first 3 numeric ones.
-    quietly {
-        gen double _gnum = .
-        gen double _ynum = .
-        local maxw = 12
-        forvalues r = 1/`=_N' {
-            local seenc = 0
-            local seeng = 0
-            local seent = 0
-            forvalues w = 1/`maxw' {
-                local tok = word(_nums[`r'], `w')
-                if "`tok'" == "" continue
-                capture confirm number `tok'
-                if !_rc {
-                    if `seenc' == 0 {
-                        local seenc = 1
-                    }
-                    else if `seeng' == 0 {
-                        local seeng = 1
-                        replace _gnum = real("`tok'") in `r'
-                    }
-                    else if `seent' == 0 {
-                        local seent = 1
-                        replace _ynum = real("`tok'") in `r'
-                    }
-                }
-            }
-        }
-    }
+
+    * Pull the leading integer for each of _Cohort, the user's group var, and
+    * the time var (whichever appear). regexs(1) returns the first capture
+    * group of the most recent regexm() call evaluated for that row.
+    gen str20 _str_c = ""
+    gen str20 _str_g = ""
+    gen str20 _str_t = ""
+    quietly replace _str_c = regexs(1) if regexm(_name, "(-?[0-9]+)(bn|b|o)?\._Cohort")
+    quietly replace _str_g = regexs(1) if regexm(_name, "(-?[0-9]+)(bn|b|o)?\.`groupvar'")
+    quietly replace _str_t = regexs(1) if regexm(_name, "(-?[0-9]+)(bn|b|o)?\.`timevar'")
+    gen double _cohort = real(_str_c)
+    gen double _gnum   = real(_str_g)
+    gen double _ynum   = real(_str_t)
+    replace _cohort = `base_c' if missing(_cohort)
+    replace _ynum   = `base_t' if missing(_ynum)
+
     replace g = _gnum
     replace t = _ynum
     replace kind = cond(t >= _cohort, "lag", "lead")
@@ -277,66 +266,68 @@ program define dump_atet_bycohort
     restore
 end
 
-* dump_atet_byget <fname>: write (g, eventtime, b, se). flexdid_atet sets
-* the byget colnames as quoted "<g> <eventtime>" pairs (see flexdid_atet.ado),
-* which Stata stores as eqname:colname — `colnames B` returns just the column
-* part and `coleq B` the equation part. Read both, concatenate, and pull the
-* two leading numeric tokens. This also tolerates the alternate factor-
-* interaction form ("2013.cohort#0.eventtime") if Stata changes its output.
+* dump_atet_byget <fname> <groupvar> <timevar>: write (g, eventtime, b, se).
+*
+* Why we don't parse colnames: flexdid_atet.ado tries to assign
+*   matrix colnames `beta' = `lofgt'
+* where lofgt has compound-quoted "<g> <eventtime>" pairs. Stata's
+* `matrix colnames` requires names without spaces, so this assignment is
+* unreliable — the override may silently fail and r(b) keeps the
+* margins-generated "<gt-level>.<tempvar>" names, which only carry one
+* numeric token per column.
+*
+* Instead we replicate flexdid_atet's enumeration order in the do-file using
+* the same `levelsof` walk on `groupvar` and event time. egen group() and
+* margins, over() both visit levels in the same sorted order, so column i of
+* r(b) corresponds to the i-th (g, eventtime) pair in our enumeration.
 capture program drop dump_atet_byget
 program define dump_atet_byget
-    args fname
+    args fname groupvar timevar
     matrix B = r(b)
     matrix V = r(V)
     local k = colsof(B)
-    local names : colnames B
-    local eqs   : coleq    B
+
+    * Mirror flexdid_atet.ado's lofgt construction (see byget block):
+    *   levelsof `group' if _Cohort > 0   then per group, levelsof of event time
+    *   among _Tx==1 cells. Sorted ascending, group-major, event-time-minor.
+    tempvar et
+    quietly gen double `et' = `timevar' - _Cohort if _Cohort > 0
+    quietly levelsof `groupvar' if _Cohort > 0, local(lofg)
+    local i = 0
+    foreach gval of local lofg {
+        quietly levelsof `et' if `groupvar'==`gval' & _Tx==1, local(loft)
+        foreach tval of local loft {
+            local ++i
+            local g_`i' = `gval'
+            local t_`i' = `tval'
+        }
+    }
+    local n_pairs = `i'
+    if `n_pairs' != `k' {
+        display as error ///
+          "dump_atet_byget: r(b) has `k' columns but enumerated `n_pairs' (g, eventtime) pairs."
+        display as error ///
+          "  Output rows may not correspond to the right cells. Check that flexdid_atet's"
+        display as error ///
+          "  byget enumeration matches: levelsof `groupvar' if _Cohort>0, then per-group"
+        display as error ///
+          "  levelsof of (timevar - _Cohort) if _Tx==1."
+    }
+
     preserve
     clear
     set obs `k'
-    gen str120 _name = ""
-    gen str120 _eq   = ""
     gen double g         = .
     gen double eventtime = .
     gen double b  = .
     gen double se = .
-    forvalues i = 1/`k' {
-        local nm : word `i' of `names'
-        local eq : word `i' of `eqs'
-        quietly replace _name = "`nm'" in `i'
-        quietly replace _eq   = "`eq'" in `i'
-        quietly replace b  = B[1, `i'] in `i'
-        quietly replace se = sqrt(V[`i', `i']) in `i'
-    }
-    * Combine eq + name into one scratch string, strip factor modifiers, then
-    * split on ".", "#", and ":" so word() returns integer tokens.
-    gen str120 _scrub = _eq + " " + _name
-    forvalues _pass = 1/4 {
-        quietly replace _scrub = regexr(_scrub, "([0-9])(bn|b|o)", "$1")
-    }
-    quietly replace _scrub = subinstr(_scrub, ".", " ", .)
-    quietly replace _scrub = subinstr(_scrub, "#", " ", .)
-    quietly replace _scrub = subinstr(_scrub, ":", " ", .)
-    quietly {
-        forvalues r = 1/`=_N' {
-            local seen = 0
-            local maxw = 12
-            forvalues w = 1/`maxw' {
-                local tok = word(_scrub[`r'], `w')
-                if "`tok'" == "" continue
-                capture confirm number `tok'
-                if !_rc {
-                    if `seen' == 0 {
-                        replace g = real("`tok'") in `r'
-                        local seen = 1
-                    }
-                    else {
-                        replace eventtime = real("`tok'") in `r'
-                        continue, break
-                    }
-                }
-            }
+    forvalues j = 1/`k' {
+        if `j' <= `n_pairs' {
+            quietly replace g         = `g_`j'' in `j'
+            quietly replace eventtime = `t_`j'' in `j'
         }
+        quietly replace b  = B[1, `j'] in `j'
+        quietly replace se = sqrt(V[`j', `j']) in `j'
     }
     keep if se > 0 & !missing(se) & !missing(g) & !missing(eventtime)
     keep g eventtime b se
@@ -352,7 +343,7 @@ end
 flexdid ssb_oz, tx(treated) group(cohort) time(year) ///
         specification(lagsandleads) vce(cluster county)
 
-dump_coefs "`OUT_REF'/coefs_lagsandleads.csv" "cohort"
+dump_coefs "`OUT_REF'/coefs_lagsandleads.csv" "cohort" "year"
 
 estat atet, overall
 dump_atet_overall "`OUT_REF'/atet_overall.csv"
@@ -370,7 +361,7 @@ estat atet, bygroup nograph
 dump_atet_1d "`OUT_REF'/atet_bygroup.csv" "g"
 
 estat atet, byget
-dump_atet_byget "`OUT_REF'/atet_byget.csv"
+dump_atet_byget "`OUT_REF'/atet_byget.csv" "cohort" "year"
 
 * ============================================================================
 * Spec 2: lagsonly with covariates (age, female), group=county, vce(cluster county)
@@ -378,7 +369,7 @@ dump_atet_byget "`OUT_REF'/atet_byget.csv"
 flexdid ssb_oz age female, tx(treated) group(county) time(year) ///
         specification(lagsonly) vce(cluster county)
 
-dump_coefs "`OUT_REF'/coefs_lagsonly.csv" "county"
+dump_coefs "`OUT_REF'/coefs_lagsonly.csv" "county" "year"
 
 estat atet, overall
 dump_atet_overall "`OUT_REF'/atet_overall_lagsonly.csv"
