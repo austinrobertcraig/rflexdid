@@ -37,6 +37,7 @@ summary.flexdid <- function(object, digits = 4, ...) {
   V <- object$vcov[keep, keep, drop = FALSE]
   se <- sqrt(diag(V))
   tval <- beta / se
+  tval[is.nan(tval)] <- NA_real_  # se = 0 gives 0/0 = NaN; NA is safe for symnum
   df <- object$df_residual
   pval <- 2 * stats::pt(-abs(tval), df = df)
   ci_lo <- beta - stats::qt(0.975, df) * se
