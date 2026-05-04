@@ -3,12 +3,14 @@
 > **Disclaimer:** This is a personal research tool, validated only against my own use cases and maintained only as needed for my own work. If you use it, verify your results independently.
 
 R port of the Stata [`flexdid`](https://ideas.repec.org/c/boc/bocode/s459517.html)
-command (Deb, Norton, Wooldridge & Zabel 2025; SSC). Estimates a flexible OLS
-regression with cohort × group × time × treatment interactions for
-staggered-timing difference-in-differences designs, then aggregates the
-resulting cell-level effects to ATETs (overall, by exposure time, by calendar
-time, by cohort, by group, or by group × exposure time). Standard errors
-match Stata's `vce(unconditional)` via influence functions.
+command (Deb, Norton, Wooldridge & Zabel 2025; SSC). It is designed for
+staggered-timing difference-in-differences in both repeated cross-sections and
+panel data. The estimator is the flexible linear model estimated by OLS with
+covariates (X) (FLEX), which allows treatment-cell effects to vary by group,
+time, and covariates, then aggregates those cell-level effects into ATETs
+(overall, by exposure, calendar time, cohort, group, or group × exposure).
+ATET inference follows Stata `estat atet, vce(unconditional)` using influence
+functions. Designs must exclude always-treated units.
 
 For example usage, see the [rflexdid demo vignette](vignettes/rflexdid_demo.md).
 
