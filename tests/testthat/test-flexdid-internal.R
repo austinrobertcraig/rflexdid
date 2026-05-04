@@ -99,7 +99,7 @@ test_that("print.summary.flexdid does not error (CI columns not passed as p-valu
   df <- make_panel()
   fit <- flexdid(bmi ~ 1, data = df, tx = "hhabit", group = "schools",
                  time = "year", specification = "lagsandleads", vcov = "robust")
-  expect_no_error(print(summary(fit)))
+  expect_no_error(capture.output(print(summary(fit))))
 })
 
 test_that("print.summary.flexdid handles non-estimable SEs when clusters < parameters", {
@@ -108,7 +108,7 @@ test_that("print.summary.flexdid handles non-estimable SEs when clusters < param
   df <- make_panel(ng = 4, cohorts = c(2033, 2034))
   fit <- flexdid(bmi ~ 1, data = df, tx = "hhabit", group = "schools",
                  time = "year", specification = "lagsandleads", vcov = "cluster")
-  expect_no_error(print(summary(fit)))
+  expect_no_error(capture.output(print(summary(fit))))
 })
 
 test_that("VCE robust matches a manual HC1 computation on a non-saturated fit", {
