@@ -497,7 +497,8 @@ atet_wald <- function(estimate, vcov_mat, df_resid, type_of_test) {
                   p = NA_real_, h0 = h0, title = "Wald test", pinv_note = NULL))
     }
     inv <- s$v[, seq_len(r), drop = FALSE] %*%
-           (s$u[, seq_len(r), drop = FALSE] / rep(s$d[seq_len(r)], each = nrow(s$u)))
+           diag(1 / s$d[seq_len(r)], nrow = r) %*%
+           t(s$u[, seq_len(r), drop = FALSE])
     df1 <- r
     pinv_note <- sprintf(
       "Note: VCov matrix is rank-deficient (rank %d of %d); pseudoinverse used. df1 = rank.",

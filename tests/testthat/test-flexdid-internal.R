@@ -111,6 +111,22 @@ test_that("print.summary.flexdid handles non-estimable SEs when clusters < param
   expect_no_error(capture.output(print(summary(fit))))
 })
 
+test_that("atet Wald test uses pseudoinverse when clusters < ATET levels", {
+  # 4 schools → rank-deficient cluster VCov for byexposure (more levels than
+  # clusters). atet_wald must fall back to pseudoinverse without erroring.
+  df  <- make_panel(ng = 4, cohorts = c(2033, 2034))
+  fit <- flexdid(bmi ~ 1, data = df, tx = "hhabit", group = "schools",
+                 time = "year", specification = "lagsandleads", vcov = "cluster")
+  expect_no_error({
+    a <- suppressMessages(atet(fit, type = "byexposure", test = "zero"))
+  })
+  tr <- a$test_result
+  expect_true(is.finite(tr$F))
+  expect_true(is.finite(tr$p))
+  expect_false(is.null(tr$pinv_note))       # pseudoinverse path was taken
+  expect_lt(tr$df1, sum(!is.na(a$tidy_table[, "t value"])))  # df1 = rank < non-NA levels
+})
+
 test_that("VCE robust matches a manual HC1 computation on a non-saturated fit", {
   # Use a panel where cells have more than one obs (combine schools into
   # cohort-level groups) so HC1 is well-defined without near-1 hat values.
