@@ -89,7 +89,10 @@ print.summary.flexdid <- function(x, digits = 4, ...) {
   n_dropped <- sum(!estimable)
   tab <- tab[estimable, , drop = FALSE]
   rows <- min(20L, nrow(tab))
-  printCoefmat(tab[seq_len(rows), , drop = FALSE],
+  # printCoefmat uses the *last* column as p-values regardless of name, so pass
+  # only the four standard columns; CI columns would be misread as p-values.
+  std_cols <- c("Estimate", "Std. Error", "t value", "Pr(>|t|)")
+  printCoefmat(tab[seq_len(rows), std_cols, drop = FALSE],
                digits = digits, has.Pvalue = TRUE, signif.legend = FALSE)
   if (n_dropped > 0L)
     cat(sprintf("(%d coefficient(s) with non-estimable SE omitted; fewer clusters than parameters)\n",

@@ -95,6 +95,22 @@ test_that("plot returns a ggplot for byexposure", {
   expect_s3_class(plot(a), "ggplot")
 })
 
+test_that("print.summary.flexdid does not error (CI columns not passed as p-values)", {
+  df <- make_panel()
+  fit <- flexdid(bmi ~ 1, data = df, tx = "hhabit", group = "schools",
+                 time = "year", specification = "lagsandleads", vcov = "robust")
+  expect_no_error(print(summary(fit)))
+})
+
+test_that("print.summary.flexdid handles non-estimable SEs when clusters < parameters", {
+  # 4 schools = 3 clusters (1 control + 2 treated cohorts); lagsandleads
+  # generates more kept parameters than clusters, so some SEs are zero.
+  df <- make_panel(ng = 4, cohorts = c(2033, 2034))
+  fit <- flexdid(bmi ~ 1, data = df, tx = "hhabit", group = "schools",
+                 time = "year", specification = "lagsandleads", vcov = "cluster")
+  expect_no_error(print(summary(fit)))
+})
+
 test_that("VCE robust matches a manual HC1 computation on a non-saturated fit", {
   # Use a panel where cells have more than one obs (combine schools into
   # cohort-level groups) so HC1 is well-defined without near-1 hat values.

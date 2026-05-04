@@ -1,7 +1,7 @@
 Package: rflexdid
 Type: Package
 Title: Flexible Difference-in-Differences with Staggered Treatment Timing
-Version: 1.0.2
+Version: 1.0.2.9000
 Authors@R:
     person("Austin", "Craig", email = "austinrobertcraig@gmail.com",
            role = c("aut", "cre"))
