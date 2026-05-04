@@ -84,9 +84,16 @@ print.summary.flexdid <- function(x, digits = 4, ...) {
     cat(sprintf("F(%d, %d) = %.3f\n", x$f_df1, x$f_df2, x$f))
   }
   cat("\nCoefficients (first 20 shown; use coef() / vcov() for full output):\n")
-  rows <- min(20L, nrow(x$coefficients))
-  printCoefmat(x$coefficients[seq_len(rows), , drop = FALSE],
+  tab <- x$coefficients
+  estimable <- !is.na(tab[, "Pr(>|t|)"])
+  n_dropped <- sum(!estimable)
+  tab <- tab[estimable, , drop = FALSE]
+  rows <- min(20L, nrow(tab))
+  printCoefmat(tab[seq_len(rows), , drop = FALSE],
                digits = digits, has.Pvalue = TRUE, signif.legend = FALSE)
+  if (n_dropped > 0L)
+    cat(sprintf("(%d coefficient(s) with non-estimable SE omitted; fewer clusters than parameters)\n",
+                n_dropped))
   invisible(x)
 }
 
