@@ -144,7 +144,29 @@ format_atet_table <- function(mat, digits = 4) {
   if (!is.matrix(cols)) cols <- matrix(cols, ncol = ncol(mat))
   colnames(cols) <- colnames(mat)
   rownames(cols) <- rownames(mat)
+
+  # Insert significance stars after the p-value column (fixest convention)
+  pval_col <- "Pr(>|t|)"
+  if (pval_col %in% colnames(mat)) {
+    pvals <- mat[, pval_col]
+    stars <- character(length(pvals))
+    stars[is.na(pvals)]                                    <- "   "
+    stars[!is.na(pvals) & pvals >= 0.1]                   <- "   "
+    stars[!is.na(pvals) & pvals <  0.1  & pvals >= 0.05]  <- ".  "
+    stars[!is.na(pvals) & pvals <  0.05 & pvals >= 0.01]  <- "*  "
+    stars[!is.na(pvals) & pvals <  0.01 & pvals >= 0.001] <- "** "
+    stars[!is.na(pvals) & pvals <  0.001]                 <- "***"
+    pidx <- which(colnames(cols) == pval_col)
+    rest <- if (pidx < ncol(cols)) cols[, seq(pidx + 1L, ncol(cols)), drop = FALSE] else NULL
+    cols <- cbind(
+      cols[, seq_len(pidx), drop = FALSE],
+      matrix(stars, ncol = 1, dimnames = list(NULL, " ")),
+      rest
+    )
+  }
+
   print(noquote(cols))
+  cat("---\nSignif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1\n")
 }
 
 #' @export

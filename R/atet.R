@@ -257,7 +257,19 @@ atet <- function(model,
   df <- model$df_residual
   # Levels with zero SE (e.g. base period of byexposure in lagsonly) get
   # t / p / CI = NA so the table prints cleanly.
-  zero_se <- se == 0 | !is.finite(se)
+  # Degenerate SE: technically > 0 but below sqrt(.Machine$double.eps) ~ 1.49e-8.
+  # Indicates a near-singular variance matrix (e.g., singleton or near-singleton
+  # clusters in a given exposure period). Treated as NA, same as the base period.
+  degenerate_se <- is.finite(se) & se > 0 & se < sqrt(.Machine$double.eps)
+  zero_se <- !is.finite(se) | se < sqrt(.Machine$double.eps)
+  if (any(degenerate_se)) {
+    message(
+      "Note: ", sum(degenerate_se), " level(s) have near-zero standard errors ",
+      "(SE < sqrt(.Machine$double.eps) ≈ 1.49e-8), likely due to singleton or ",
+      "near-singleton clusters. t, p, and CIs set to NA for: ",
+      paste(level_labels[degenerate_se], collapse = ", "), "."
+    )
+  }
   tval <- ifelse(zero_se, NA_real_, ATET / se)
   pval <- ifelse(zero_se, NA_real_, 2 * stats::pt(-abs(tval), df = df))
   qcrit <- stats::qt(1 - (1 - level) / 2, df)
