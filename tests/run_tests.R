@@ -21,6 +21,7 @@ devtools::load_all(repo_root, quiet = TRUE)
 log_con <- file(out_path, open = "wt")
 on.exit({ try(close(log_con), silent = TRUE) }, add = TRUE)
 
+cat(format(Sys.time(), "Run: %Y-%m-%d %H:%M:%S %Z\n\n"), file = log_con)
 sink(log_con, split = TRUE)
 sink(log_con, type = "message", append = TRUE)
 
