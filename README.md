@@ -2,7 +2,7 @@
 
 > **Disclaimer:** This is a personal research tool, validated only against my own use cases and maintained only as needed for my own work. If you use it, verify your results independently.
 
-R port of the Stata [`flexdid`](https://ideas.repec.org/c/boc/bocode/s459302.html)
+R port of the Stata [`flexdid`](https://ideas.repec.org/c/boc/bocode/s459517.html)
 command (Deb, Norton, Wooldridge & Zabel 2025; SSC). Estimates a flexible OLS
 regression with cohort × group × time × treatment interactions for
 staggered-timing difference-in-differences designs, then aggregates the
