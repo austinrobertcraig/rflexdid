@@ -482,18 +482,35 @@ atet_wald <- function(estimate, vcov_mat, df_resid, type_of_test) {
     rhs <- numeric(L - 1L)
     h0 <- "Effects are equal to each other"
   }
-  Rb <- as.numeric(R %*% estimate - rhs)
+  Rb  <- as.numeric(R %*% estimate - rhs)
   RVR <- R %*% vcov_mat %*% t(R)
   inv <- tryCatch(solve(RVR), error = function(e) NULL)
+  pinv_note <- NULL
   if (is.null(inv)) {
-    return(list(F = NA_real_, df1 = NA_integer_, df2 = df_resid,
-                p = NA_real_, h0 = h0, title = "Wald test"))
+    # RVR is rank-deficient (e.g. more ATET levels than clusters). Fall back to
+    # SVD pseudoinverse; df1 is set to the numerical rank of RVR.
+    s   <- svd(RVR)
+    tol <- max(dim(RVR)) * max(s$d) * .Machine$double.eps
+    r   <- sum(s$d > tol)
+    if (r == 0L) {
+      return(list(F = NA_real_, df1 = NA_integer_, df2 = df_resid,
+                  p = NA_real_, h0 = h0, title = "Wald test", pinv_note = NULL))
+    }
+    inv <- s$v[, seq_len(r), drop = FALSE] %*%
+           (s$u[, seq_len(r), drop = FALSE] / rep(s$d[seq_len(r)], each = nrow(s$u)))
+    df1 <- r
+    pinv_note <- sprintf(
+      "Note: VCov matrix is rank-deficient (rank %d of %d); pseudoinverse used. df1 = rank.",
+      r, nrow(RVR)
+    )
+  } else {
+    df1 <- nrow(R)
   }
-  W <- as.numeric(t(Rb) %*% inv %*% Rb)
-  df1 <- nrow(R)
+  W     <- as.numeric(t(Rb) %*% inv %*% Rb)
   Fstat <- W / df1
-  pval <- stats::pf(Fstat, df1, df_resid, lower.tail = FALSE)
+  pval  <- stats::pf(Fstat, df1, df_resid, lower.tail = FALSE)
   list(F = Fstat, df1 = df1, df2 = df_resid, p = pval,
        h0 = h0, title = sprintf("Test of %s ATETs",
-                                 if (type_of_test == "zero") "zero" else "equal"))
+                                 if (type_of_test == "zero") "zero" else "equal"),
+       pinv_note = pinv_note)
 }

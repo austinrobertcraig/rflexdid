@@ -125,6 +125,7 @@ print.flexdid_atet <- function(x, digits = 4, ...) {
     cat("  H0: ", tr$h0, "\n", sep = "")
     cat(sprintf("  F(%d, %d) = %.3f   Prob > F = %.4f\n",
                 tr$df1, tr$df2, tr$F, tr$p))
+    if (!is.null(tr$pinv_note)) cat("  ", tr$pinv_note, "\n", sep = "")
   }
   invisible(x)
 }
