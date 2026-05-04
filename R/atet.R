@@ -39,7 +39,10 @@
 #' @param aggregationweight Either `"obslevel"` (default) or `"grouplevel"`.
 #'   Group-level weighting reweights observations by `(n_g/T)/n_gt`, then
 #'   renormalizes the weights to average 1 on the subpopulation.
-#' @param test Optional `"zero"` or `"equal"` for a Wald test.
+#' @param test Optional Wald test to append. `"zero"` tests H0: all ATETs = 0;
+#'   `"equal"` tests H0: all ATETs are equal; `"pretrends"` tests H0: all
+#'   pre-treatment ATETs = 0 (parallel-trends pre-test, only valid for
+#'   `type = "byexposure"`).
 #' @param level Numeric in (0,1). Confidence level for printed CIs.
 #' @return An object of class `flexdid_atet`.
 #' @export
@@ -58,8 +61,8 @@ atet <- function(model,
   type <- match.arg(type)
   aggregationweight <- match.arg(aggregationweight)
   if (!is.null(test)) {
-    if (!test %in% c("zero", "equal")) {
-      stop('`test` must be "zero" or "equal".', call. = FALSE)
+    if (!test %in% c("zero", "equal", "pretrends")) {
+      stop('`test` must be "zero", "equal", or "pretrends".', call. = FALSE)
     }
   }
 
@@ -262,14 +265,13 @@ atet <- function(model,
   # clusters in a given exposure period). Treated as NA, same as the base period.
   degenerate_se <- is.finite(se) & se > 0 & se < sqrt(.Machine$double.eps)
   zero_se <- !is.finite(se) | se < sqrt(.Machine$double.eps)
-  if (any(degenerate_se)) {
-    message(
-      "Note: ", sum(degenerate_se), " level(s) have near-zero standard errors ",
-      "(SE < sqrt(.Machine$double.eps) ≈ 1.49e-8), likely due to singleton or ",
-      "near-singleton clusters. t, p, and CIs set to NA for: ",
-      paste(level_labels[degenerate_se], collapse = ", "), "."
+  degenerate_note <- if (any(degenerate_se)) {
+    sprintf(
+      "Note: %d level(s) have near-zero standard errors (SE < sqrt(.Machine$double.eps) ≈ 1.49e-8), likely due to singleton or near-singleton clusters. t, p, and CIs set to NA for: %s.",
+      sum(degenerate_se),
+      paste(level_labels[degenerate_se], collapse = ", ")
     )
-  }
+  } else NULL
   tval <- ifelse(zero_se, NA_real_, ATET / se)
   pval <- ifelse(zero_se, NA_real_, 2 * stats::pt(-abs(tval), df = df))
   qcrit <- stats::qt(1 - (1 - level) / 2, df)
@@ -288,10 +290,27 @@ atet <- function(model,
   # ---- Optional Wald test (skip zero-SE rows; e.g. eventtime=-1 base period)
   test_result <- NULL
   if (!is.null(test)) {
+    effective_test <- test
+    if (identical(test, "pretrends")) {
+      if (!identical(type, "byexposure")) {
+        warning("`test = 'pretrends'` is only applicable for type = 'byexposure'; ",
+                "falling back to `test = 'zero'`.")
+        effective_test <- "zero"
+      }
+    }
     keep_l <- !zero_se
-    if (sum(keep_l) >= 1L) {
+    if (identical(effective_test, "pretrends")) {
+      keep_l_pre <- keep_l & (as.numeric(level_labels) < 0)
+      if (sum(keep_l_pre) >= 1L) {
+        test_result <- atet_wald(ATET[keep_l_pre],
+                                 V_atet[keep_l_pre, keep_l_pre, drop = FALSE],
+                                 df_resid = df, type_of_test = "zero")
+        test_result$title <- "Pre-test of parallel trends assumption"
+        test_result$h0    <- "All pre-treatment effects are equal to zero"
+      }
+    } else if (sum(keep_l) >= 1L) {
       test_result <- atet_wald(ATET[keep_l], V_atet[keep_l, keep_l, drop = FALSE],
-                               df_resid = df, type_of_test = test)
+                               df_resid = df, type_of_test = effective_test)
     }
   }
 
@@ -306,6 +325,7 @@ atet <- function(model,
     for_expr           = for_expr,
     aggregation_weight = aggregationweight,
     test_result        = test_result,
+    degenerate_note    = degenerate_note,
     level              = level,
     tidy_table         = tidy_table,
     level_labels       = level_labels,
@@ -501,7 +521,7 @@ atet_wald <- function(estimate, vcov_mat, df_resid, type_of_test) {
            t(s$u[, seq_len(r), drop = FALSE])
     df1 <- r
     pinv_note <- sprintf(
-      "Note: VCov matrix is rank-deficient (rank %d of %d); pseudoinverse used. df1 = rank.",
+      "Note: VCov matrix is rank-deficient (rank %d of %d); pseudoinverse used for Wald test.",
       r, nrow(RVR)
     )
   } else {

@@ -119,6 +119,7 @@ print.flexdid_atet <- function(x, digits = 4, ...) {
   cat("Aggregation weight: ", x$aggregation_weight, "\n", sep = "")
   cat("\n")
   format_atet_table(x$tidy_table, digits = digits)
+  if (!is.null(x$degenerate_note)) cat("\n", x$degenerate_note, "\n", sep = "")
   if (!is.null(x$test_result)) {
     tr <- x$test_result
     cat("\n", tr$title, "\n", sep = "")

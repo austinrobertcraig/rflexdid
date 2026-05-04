@@ -118,7 +118,7 @@ test_that("atet Wald test uses pseudoinverse when clusters < ATET levels", {
   fit <- flexdid(bmi ~ 1, data = df, tx = "hhabit", group = "schools",
                  time = "year", specification = "lagsandleads", vcov = "cluster")
   expect_no_error({
-    a <- suppressMessages(atet(fit, type = "byexposure", test = "zero"))
+    a <- atet(fit, type = "byexposure", test = "zero")
   })
   tr <- a$test_result
   expect_true(is.finite(tr$F))
@@ -149,4 +149,15 @@ test_that("VCE robust matches a manual HC1 computation on a non-saturated fit", 
   expect_equal(unname(diag(fit$vcov)[fit$pivot_keep]),
                unname(diag(V_manual)),
                tolerance = 1e-8)
+})
+
+test_that("pretrends test restricts to pre-treatment periods and has correct label", {
+  df  <- make_panel()
+  fit <- flexdid(bmi ~ 1, data = df, tx = "hhabit", group = "schools",
+                 time = "year", specification = "lagsandleads", vcov = "cluster")
+  a  <- atet(fit, type = "byexposure", test = "pretrends")
+  tr <- a$test_result
+  expect_match(tr$title, "parallel trends", ignore.case = TRUE)
+  expect_true(is.finite(tr$F))
+  expect_true(is.finite(tr$p))
 })

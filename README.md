@@ -124,7 +124,7 @@ atet(
 | `values` | Numeric vector restricting which event times (for `"overall"`, `"byexposure"`, `"byget"`) or calendar periods (for `"bycalendar"`) to include. Defaults to all observed post-treatment values (all event times for `"lagsandleads"`). |
 | `for_expr` | One-sided formula (e.g. `~ female == 1`) restricting the subpopulation over which the ATET is averaged. Multiple conditions can be combined with `&` or `|` (e.g. `~ female == 1 & age > 10`). A `quote()`-style unevaluated expression is also accepted. Equivalent to Stata's `for(...)` option. |
 | `aggregationweight` | `"grouplevel"` to weight cells by group size rather than individual observations, matching Stata's `aggregationweight(grouplevel)`. |
-| `test` | `"zero"` to test H₀: all ATETs = 0; `"equal"` to test H₀: all ATETs are equal. Both use a Wald F-test. |
+| `test` | `"zero"` to test H₀: all ATETs = 0; `"equal"` to test H₀: all ATETs are equal; `"pretrends"` to test H₀: all pre-treatment ATETs = 0 (parallel-trends pre-test, only valid for `type = "byexposure"`). All use a Wald F-test. |
 | `level` | Confidence level for the tidy table (default 95). |
 
 Returns a `flexdid_atet` object with components `estimate`, `vcov`, `tidy_table`, `test_result`, and others. Supports `print()`, `as.data.frame()`, and `plot()` (the last requires `ggplot2`).

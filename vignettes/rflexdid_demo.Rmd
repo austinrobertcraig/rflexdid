@@ -150,13 +150,14 @@ dynamic profile of the tax's effect. The base period `e = -1` is
 mechanically zero with SE = 0.
 
 ```{r byexposure}
-ax <- atet(fit, type = "byexposure", test = "zero")
+ax <- atet(fit, type = "byexposure", test = "pretrends")
 ax
 plot(ax)
 ```
 
-The Wald test rejects the joint hypothesis that all event-time effects
-are zero.
+The pre-test of parallel trends evaluates H₀: all pre-treatment ATETs = 0.
+Since the DGP imposes strict parallel pre-trends, we do not reject — consistent
+with zero pre-treatment differences.
 
 ## By treated cohort
 

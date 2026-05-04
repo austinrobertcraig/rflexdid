@@ -37,7 +37,10 @@ so this flag is ignored.}
 Group-level weighting reweights observations by `(n_g/T)/n_gt`, then
 renormalizes the weights to average 1 on the subpopulation.}
 
-\item{test}{Optional `"zero"` or `"equal"` for a Wald test.}
+\item{test}{Optional Wald test to append. `"zero"` tests H0: all ATETs = 0;
+`"equal"` tests H0: all ATETs are equal; `"pretrends"` tests H0: all
+pre-treatment ATETs = 0 (parallel-trends pre-test, only valid for
+`type = "byexposure"`).
 
 \item{level}{Numeric in (0,1). Confidence level for printed CIs.}
 }
