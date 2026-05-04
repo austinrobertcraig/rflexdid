@@ -1,16 +1,7 @@
----
-title: "Demonstrating rflexdid on simulated data"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{Demonstrating rflexdid on simulated data}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
----
-
 <!--
 To regenerate rflexdid_demo.md (the GitHub-rendered version) after editing:
 
-    Rscript -e 'devtools::install(quiet=TRUE); setwd("vignettes"); knitr::knit("rflexdid_demo.Rmd", output = "rflexdid_demo.md")'
+    Rscript -e 'devtools::install(quiet=TRUE); setwd("vignettes"); knitr::knit("rflexdid_demo.Rmd", output = "rflexdid_demo.md"); txt <- readLines("rflexdid_demo.md"); delims <- which(txt == "---"); if (length(delims) >= 2) txt <- txt[seq(delims[2] + 1, length(txt))]; first <- which(nchar(trimws(txt)) > 0)[1]; if (!is.na(first) && first > 1) txt <- txt[seq(first, length(txt))]; writeLines(txt, "rflexdid_demo.md")'
 
 Run from the package root. devtools::install() is required so that
 system.file("extdata", ..., package = "rflexdid") resolves correctly.
@@ -169,7 +160,7 @@ twfe
 The TWFE coefficient on `treated` is noticeably attenuated relative to
 the flexdid overall ATET above. This is the canonical
 Goodman-Bacon (2021) result: under staggered treatment timing with
-dynamic effects, TWFE puts negative weight on "forbidden comparisons"
+dynamic effects, TWFE includes "forbidden comparisons"
 in which already-treated units serve as controls for later-treated
 cohorts. When effects intensify with exposure, those negative-weighted
 2 × 2 contrasts pull the estimate toward zero. The `flexdid` design
