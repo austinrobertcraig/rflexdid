@@ -2,7 +2,7 @@
 
 > **Disclaimer:** This is a personal research tool maintained only as needed for my own work. If you use it, verify your results independently.
 
-`rflexdid` is an R implementation of the Stata [`flexdid`](https://ideas.repec.org/c/boc/bocode/s459517.html) command (Deb, Norton, Wooldridge & Zabel, 2025).
+`rflexdid` is an R port of the Stata [`flexdid`](https://ideas.repec.org/c/boc/bocode/s459517.html) command (Deb, Norton, Wooldridge & Zabel, 2025).
 It implements the FLEX estimator, an OLS-based approach for staggered-timing difference-in-differences in panel and repeated cross-section data that allows treatment effects to vary by group, time, and covariates. The procedure estimates treatment effects at the treatment-cell level (by group and time) and then aggregates those estimates into interpretable average treatment-on-the-treated (ATET) summaries (overall, by exposure/event-time, by cohort, calendar time, group, or group × exposure).
 
 [Deb et al. (2026)](https://www.nber.org/papers/w33026) refer to this approach as FLEX: **F**lexible **L**inear model **E**stimated by OLS with Covariates (**X**).
