@@ -59,13 +59,23 @@ table(df$cohort)
 
 ## Estimation
 
-`flexdid()` runs a single OLS regression of `ssb_oz` on a saturated set
-of cohort × group × time × treatment interactions. County and year
-fixed effects are absorbed automatically. `specification = "lagsandleads"`
-adds pre-treatment lead indicators so parallel pre-trends are visually
-testable. Standard errors cluster at the county level. The right-hand
-side `~ 1` here means no covariates; we add one in the
-[Including covariates](#including-covariates) section.
+`flexdid()` fits the pooled OLS `FLEX` regression that includes treatment‑cell
+indicators together with group and time fixed effects. When
+`specification = "lagsonly"` the model parameterizes group×event‑time lags
+(which, in balanced designs, corresponds to cohort×time lags); when
+`specification = "lagsandleads"` it additionally includes pre‑treatment
+lead indicators and yields cohort×time treatment‑cell indicators. Covariates
+on the right‑hand side are interacted with the treatment‑cell indicators so
+that treatment effects can vary across cells; additive controls can instead
+be specified via `xnotinteracted`.
+
+Identifying assumptions: (i) there must be at least one period in
+which all units are untreated (no always‑treated units); (ii) conditional
+parallel trends: untreated potential outcomes are captured by the included
+group and time effects (and covariates when used); (iii) for repeated
+cross‑sections, any compositional changes over time must be unrelated to
+treatment timing conditional on covariates. See Deb et al. (2025) for formal
+conditions.
 
 
 ``` r
@@ -111,7 +121,7 @@ mean(tau_true[df$treated == 1])
 ## [1] -1.754667
 ```
 
-The flexdid estimate should be close:
+The `flexdid` estimate should be close to the DGP truth:
 
 
 ``` r
@@ -169,12 +179,9 @@ separately and then aggregating only legitimate comparisons.
 
 ## Including covariates
 
-Putting a continuous covariate on the right-hand side of the formula
-interacts it with every cohort × group × time cell — it allows the
-treatment effect to vary with the covariate and absorbs residual
-variance for tighter standard errors. In this DGP age does not moderate
-treatment, so the overall ATET barely moves; the standard error tightens
-slightly:
+Covariates placed on the RHS are interacted with the treatment‑cell
+indicators, permitting treatment effects to vary with those covariates
+across cells. In this DGP age does not moderate treatment, so the overall ATET barely moves; the standard error tightens slightly:
 
 
 ``` r
@@ -201,6 +208,39 @@ atet(fit_age, type = "overall")
 ## Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ```
 
+Controls supplied via `xnotinteracted` enter additively,
+absorbing mean differences but not allowing treatment‑effect heterogeneity.
+This can improve precision when covariates are strong predictors of the outcome but do not moderate treatment effects. It can also help make a conditional parallel trends assumption more plausible without inflating the parameter count by interacting covariates with treatment‑cell indicators.
+
+(Note: covariates that are constant within a group are collinear with the group fixed effects and will be dropped.)
+
+
+``` r
+fit2 <- flexdid(ssb_oz ~ 1,
+                data = df,
+                tx = "treated",
+                group = "county",
+                time = "year",
+                specification = "lagsandleads",
+                xnotinteracted = ~ region,
+                vcov = "cluster",
+                cluster = "county")
+
+atet(fit2, type = "overall")
+```
+
+```
+## Overall ATET
+## Observations: 20000 | ATET sample: 7500
+## Aggregation weight: obslevel
+## 
+##         Estimate Std. Error t value Pr(>|t|)     [CI lo] [CI hi]
+## Overall -1.6325   0.1882    -8.6762  0.0000  *** -2.0013 -1.2637
+## ---
+## Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+
 The remaining sections continue to use the baseline (`fit`, no
 covariates) for clarity.
 
@@ -209,8 +249,9 @@ covariates) for clarity.
 The most useful diagnostic. Pre-period estimates (event time `e < 0`)
 should be statistically indistinguishable from zero; post-period
 estimates should grow more negative with exposure time, tracing out the
-dynamic profile of the tax's effect. The base period `e = -1` is
-mechanically zero with SE = 0.
+dynamic profile of the tax's effect. The base period `e = -1` is the
+omitted reference category in the event‑study specification and is
+therefore set to zero by construction.
 
 
 ``` r
@@ -413,39 +454,6 @@ atet(fit, type = "byexposure", for_expr = ~ female == 1)
 ## 4  -2.3654   0.2477    -9.5490   0.0000  *** -2.8509  -1.8799 
 ## 5  -2.9158   0.3151    -9.2527   0.0000  *** -3.5335  -2.2981 
 ## 6  -3.0864   0.2591    -11.9132  0.0000  *** -3.5942  -2.5786 
-## ---
-## Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-```
-
-## Non-interacted controls (`xnotinteracted`)
-
-`xnotinteracted` adds additive controls that are not interacted with the
-treatment-cell indicators — useful for absorbing variance from
-group-level covariates without inflating the parameter count. Region is
-constant within county, so it slots in cleanly here.
-
-
-``` r
-fit2 <- flexdid(ssb_oz ~ 1,
-                data = df,
-                tx = "treated",
-                group = "county",
-                time = "year",
-                specification = "lagsandleads",
-                xnotinteracted = ~ region,
-                vcov = "cluster",
-                cluster = "county")
-
-atet(fit2, type = "overall")
-```
-
-```
-## Overall ATET
-## Observations: 20000 | ATET sample: 7500
-## Aggregation weight: obslevel
-## 
-##         Estimate Std. Error t value Pr(>|t|)     [CI lo] [CI hi]
-## Overall -1.6325   0.1882    -8.6762  0.0000  *** -2.0013 -1.2637
 ## ---
 ## Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ```

@@ -1,16 +1,18 @@
 # rflexdid
 
-> **Disclaimer:** This is a personal research tool, validated only against my own use cases and maintained only as needed for my own work. If you use it, verify your results independently.
+> **Disclaimer:** This is a personal research tool maintained only as needed for my own work. If you use it, verify your results independently.
 
-R port of the Stata [`flexdid`](https://ideas.repec.org/c/boc/bocode/s459517.html)
-command (Deb, Norton, Wooldridge & Zabel 2025; SSC). It is designed for
-staggered-timing difference-in-differences in both repeated cross-sections and
-panel data. The estimator is the flexible linear model estimated by OLS with
-covariates (X) (FLEX), which allows treatment-cell effects to vary by group,
-time, and covariates, then aggregates those cell-level effects into ATETs
-(overall, by exposure, calendar time, cohort, group, or group × exposure).
-ATET inference follows Stata `estat atet, vce(unconditional)` using influence
-functions. Designs must exclude always-treated units.
+`rflexdid` is an R implementation of the Stata [`flexdid`](https://ideas.repec.org/c/boc/bocode/s459517.html) command (Deb, Norton, Wooldridge & Zabel, 2025).
+It implements the FLEX estimator, an OLS-based approach for staggered-timing difference-in-differences in panel and repeated cross-section data that allows treatment effects to vary by group, time, and covariates. The procedure estimates treatment effects at the treatment-cell level (by group and time) and then aggregates those estimates into interpretable average treatment-on-the-treated (ATET) summaries (overall, by exposure/event-time, by cohort, calendar time, group, or group × exposure).
+
+[Deb et al. (2026)](https://www.nber.org/papers/w33026) refer to this approach as FLEX: **F**lexible **L**inear model **E**stimated by OLS with Covariates (**X**).
+
+Identifying assumptions: (i) there must be at least one period in
+which all units are untreated (no always‑treated units); (ii) conditional
+parallel trends; (iii) for repeated
+cross‑sections, any compositional changes over time must be unrelated to
+treatment timing conditional on covariates. See Deb et al. (2026) for formal
+conditions.
 
 For example usage, see the [rflexdid demo vignette](vignettes/rflexdid_demo.md).
 
@@ -207,6 +209,6 @@ simulate_flexdid_data()
 
 ## References
 
-Deb, P., Norton, E. C., Wooldridge, J. M., Zabel, J. E. (2025), "A Flexible,
+Deb, P., Norton, E. C., Wooldridge, J. M., & Zabel, J. E. (2026). A Flexible,
 Heterogeneous Treatment Effects Difference-in-Differences Estimator for
-Repeated Cross-Sections", NBER Working Paper No. 33026.
+Repeated Cross-Sections. NBER Working Paper No. 33026. https://www.nber.org/papers/w33026
