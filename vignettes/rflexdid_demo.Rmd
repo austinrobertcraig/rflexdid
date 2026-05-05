@@ -50,15 +50,9 @@ table(df$cohort)
 
 ## Estimation
 
-`flexdid()` fits the pooled OLS `FLEX` regression that includes treatment‑cell
-indicators together with group and time fixed effects. When
-`specification = "lagsonly"` the model parameterizes group×event‑time lags
-(which, in balanced designs, corresponds to cohort×time lags); when
-`specification = "lagsandleads"` it additionally includes pre‑treatment
-lead indicators and yields cohort×time treatment‑cell indicators. Covariates
-on the right‑hand side are interacted with the treatment‑cell indicators so
-that treatment effects can vary across cells; additive controls can instead
-be specified via `xnotinteracted`.
+`flexdid()` fits the pooled OLS `FLEX` regression that includes treatment‑cell indicators together with group and time fixed effects.
+When `specification = "lagsonly"` all pre-treatment periods are aggregated to form a reference period; when `specification = "lagsandleads"` the method includes separate indicators for each pre-treatment period, allowing for dynamic effects in the pre-period as well. In the latter case, the period just before treatment (`e = -1`) is the omitted reference period.
+Covariates on the right‑hand side are interacted with the treatment‑cell indicators so that treatment effects can vary across cells; additive controls can instead be specified via `xnotinteracted`.
 
 Identifying assumptions: (i) there must be at least one period in
 which all units are untreated (no always‑treated units); (ii) conditional
