@@ -23,10 +23,15 @@ atet(
 \item{values}{Optional numeric vector restricting which levels are
 reported. Semantics differ by `type` (see Details).}
 
-\item{for_expr}{Optional one-sided formula restricting the subpopulation,
-e.g. `~ female == 1`. Multiple conditions can be combined with `&` or `|`
-(e.g. `~ female == 1 & age > 10`). A `quote()`-style unevaluated
-expression is also accepted. Evaluated in the modeling data.}
+\item{for_expr}{Optional one-sided formula whose right-hand side is any
+R expression returning a logical vector. The ATET is then averaged
+only over observations where the expression is `TRUE`. Variables are
+looked up in the modeling data, so any column passed to `flexdid()`
+is available. Compound conditions use the standard R logical
+operators `&` (AND), `|` (OR), and `!` (NOT). Examples:
+`~ female == 1`, `~ female == 1 & age > 10`,
+`~ region == "South" | region == "West"`. A `quote()`-style
+unevaluated expression is also accepted.}
 
 \item{aggregationweight}{Character; one of `"obslevel"` (default) or
 `"grouplevel"`. Group-level weighting reweights observations by
