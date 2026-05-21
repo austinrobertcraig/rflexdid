@@ -21,12 +21,12 @@ flexdid(
 )
 }
 \arguments{
-\item{formula}{A two-sided formula `y ~ x1 + x2`, where `y` is the
-outcome and the right-hand side lists the covariates that should be
-interacted with treatment, group, and time indicators. Pass `y ~ 1`
-for no interacted covariates.}
+\item{formula}{Formula; two-sided, e.g. `y ~ x1 + x2`. The left-hand
+side is the outcome and the right-hand side lists the covariates that
+should be interacted with treatment, group, and time indicators. Pass
+`y ~ 1` for no interacted covariates.}
 
-\item{data}{A data frame.}
+\item{data}{Data frame.}
 
 \item{tx}{Character; column name of the binary treatment indicator
 (1 = treated this period, 0 = otherwise). Required.}
@@ -38,23 +38,25 @@ estimated. Required.}
 \item{time}{Character; column name of the integer time variable.
 Required. Must be equally spaced unless `usercohort` is supplied.}
 
-\item{specification}{Either `"lagsonly"` (default) or `"lagsandleads"`.}
+\item{specification}{Character; one of `"lagsonly"` (default) or
+`"lagsandleads"`.}
 
-\item{xnotinteracted}{Optional additive controls. A character vector of
-column names or a one-sided formula. Must be disjoint from `formula`'s
-covariates.}
+\item{xnotinteracted}{Optional additive controls. Character vector of
+column names, or a one-sided formula. Must be disjoint from
+`formula`'s covariates.}
 
-\item{usercohort}{Optional column name with a user-supplied cohort
-variable; overrides the internal cohort calculation. Useful when some
-time periods are missing.}
+\item{usercohort}{Character; optional column name with a user-supplied
+cohort variable. Overrides the internal cohort calculation. Useful
+when some time periods are missing.}
 
-\item{weights}{Optional column name of observation weights (treated as
-pweights, matching the Stata default for clustered designs).}
+\item{weights}{Character; optional column name of observation weights
+(treated as pweights, matching the Stata default for clustered
+designs).}
 
-\item{vcov}{One of `"cluster"` (default) or `"robust"`.}
+\item{vcov}{Character; one of `"cluster"` (default) or `"robust"`.}
 
-\item{cluster}{Optional column name for the cluster variable. Defaults
-to `group` when `vcov = "cluster"`.}
+\item{cluster}{Character; optional column name for the cluster
+variable. Defaults to `group` when `vcov = "cluster"`.}
 
 \item{subset}{Optional logical vector or unevaluated expression used to
 restrict the sample (analogous to Stata's `if`).}

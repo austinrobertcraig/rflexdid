@@ -5,11 +5,11 @@
 #' treatment interactions, then aggregates cell-level effects to ATETs via
 #' [atet()].
 #'
-#' @param formula A two-sided formula `y ~ x1 + x2`, where `y` is the
-#'   outcome and the right-hand side lists the covariates that should be
-#'   interacted with treatment, group, and time indicators. Pass `y ~ 1`
-#'   for no interacted covariates.
-#' @param data A data frame.
+#' @param formula Formula; two-sided, e.g. `y ~ x1 + x2`. The left-hand
+#'   side is the outcome and the right-hand side lists the covariates that
+#'   should be interacted with treatment, group, and time indicators. Pass
+#'   `y ~ 1` for no interacted covariates.
+#' @param data Data frame.
 #' @param tx Character; column name of the binary treatment indicator
 #'   (1 = treated this period, 0 = otherwise). Required.
 #' @param group Character; column name of the group variable used for
@@ -17,18 +17,20 @@
 #'   estimated. Required.
 #' @param time Character; column name of the integer time variable.
 #'   Required. Must be equally spaced unless `usercohort` is supplied.
-#' @param specification Either `"lagsonly"` (default) or `"lagsandleads"`.
-#' @param xnotinteracted Optional additive controls. A character vector of
-#'   column names or a one-sided formula. Must be disjoint from `formula`'s
-#'   covariates.
-#' @param usercohort Optional column name with a user-supplied cohort
-#'   variable; overrides the internal cohort calculation. Useful when some
-#'   time periods are missing.
-#' @param weights Optional column name of observation weights (treated as
-#'   pweights, matching the Stata default for clustered designs).
-#' @param vcov One of `"cluster"` (default) or `"robust"`.
-#' @param cluster Optional column name for the cluster variable. Defaults
-#'   to `group` when `vcov = "cluster"`.
+#' @param specification Character; one of `"lagsonly"` (default) or
+#'   `"lagsandleads"`.
+#' @param xnotinteracted Optional additive controls. Character vector of
+#'   column names, or a one-sided formula. Must be disjoint from
+#'   `formula`'s covariates.
+#' @param usercohort Character; optional column name with a user-supplied
+#'   cohort variable. Overrides the internal cohort calculation. Useful
+#'   when some time periods are missing.
+#' @param weights Character; optional column name of observation weights
+#'   (treated as pweights, matching the Stata default for clustered
+#'   designs).
+#' @param vcov Character; one of `"cluster"` (default) or `"robust"`.
+#' @param cluster Character; optional column name for the cluster
+#'   variable. Defaults to `group` when `vcov = "cluster"`.
 #' @param subset Optional logical vector or unevaluated expression used to
 #'   restrict the sample (analogous to Stata's `if`).
 #' @param verbose Logical; if `TRUE`, print the underlying regression

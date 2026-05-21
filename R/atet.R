@@ -25,21 +25,20 @@
 #' `estat atet`.
 #'
 #' @param model A `flexdid` object.
-#' @param type One of `"overall"`, `"byget"`, `"byexposure"`, `"bycalendar"`,
-#'   `"bycohort"`, or `"bygroup"`.
+#' @param type Character; one of `"overall"`, `"byexposure"`,
+#'   `"bycalendar"`, `"bycohort"`, `"bygroup"`, or `"byget"`.
 #' @param values Optional numeric vector restricting which levels are
 #'   reported. Semantics differ by `type` (see Details).
 #' @param for_expr Optional one-sided formula restricting the subpopulation,
 #'   e.g. `~ female == 1`. Multiple conditions can be combined with `&` or `|`
 #'   (e.g. `~ female == 1 & age > 10`). A `quote()`-style unevaluated
 #'   expression is also accepted. Evaluated in the modeling data.
-#' @param dydx Logical; included for API parity with Stata. The R
-#'   implementation uses the same gradient-based contrast in either case,
-#'   so this flag is ignored.
-#' @param aggregationweight Either `"obslevel"` (default) or `"grouplevel"`.
-#'   Group-level weighting reweights observations by `(n_g/T)/n_gt`, then
-#'   renormalizes the weights to average 1 on the subpopulation.
-#' @param test Optional Wald test to append. `"zero"` tests H0: all ATETs = 0;
+#' @param aggregationweight Character; one of `"obslevel"` (default) or
+#'   `"grouplevel"`. Group-level weighting reweights observations by
+#'   `(n_g/T)/n_gt`, then renormalizes the weights to average 1 on the
+#'   subpopulation.
+#' @param test Character; optional Wald test to append. One of `"zero"`,
+#'   `"equal"`, or `"pretrends"`. `"zero"` tests H0: all ATETs = 0;
 #'   `"equal"` tests H0: all ATETs are equal; `"pretrends"` tests H0: all
 #'   pre-treatment ATETs = 0 (parallel-trends pre-test, only valid for
 #'   `type = "byexposure"`).
@@ -51,7 +50,6 @@ atet <- function(model,
                           "bycohort", "bygroup", "byget"),
                  values = NULL,
                  for_expr = NULL,
-                 dydx = FALSE,
                  aggregationweight = c("obslevel", "grouplevel"),
                  test = NULL,
                  level = 0.95) {

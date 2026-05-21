@@ -9,7 +9,6 @@ atet(
   type = c("overall", "byexposure", "bycalendar", "bycohort", "bygroup", "byget"),
   values = NULL,
   for_expr = NULL,
-  dydx = FALSE,
   aggregationweight = c("obslevel", "grouplevel"),
   test = NULL,
   level = 0.95
@@ -18,8 +17,8 @@ atet(
 \arguments{
 \item{model}{A `flexdid` object.}
 
-\item{type}{One of `"overall"`, `"byget"`, `"byexposure"`, `"bycalendar"`,
-`"bycohort"`, or `"bygroup"`.}
+\item{type}{Character; one of `"overall"`, `"byexposure"`,
+`"bycalendar"`, `"bycohort"`, `"bygroup"`, or `"byget"`.}
 
 \item{values}{Optional numeric vector restricting which levels are
 reported. Semantics differ by `type` (see Details).}
@@ -29,18 +28,16 @@ e.g. `~ female == 1`. Multiple conditions can be combined with `&` or `|`
 (e.g. `~ female == 1 & age > 10`). A `quote()`-style unevaluated
 expression is also accepted. Evaluated in the modeling data.}
 
-\item{dydx}{Logical; included for API parity with Stata. The R
-implementation uses the same gradient-based contrast in either case,
-so this flag is ignored.}
+\item{aggregationweight}{Character; one of `"obslevel"` (default) or
+`"grouplevel"`. Group-level weighting reweights observations by
+`(n_g/T)/n_gt`, then renormalizes the weights to average 1 on the
+subpopulation.}
 
-\item{aggregationweight}{Either `"obslevel"` (default) or `"grouplevel"`.
-Group-level weighting reweights observations by `(n_g/T)/n_gt`, then
-renormalizes the weights to average 1 on the subpopulation.}
-
-\item{test}{Optional Wald test to append. `"zero"` tests H0: all ATETs = 0;
+\item{test}{Character; optional Wald test to append. One of `"zero"`,
+`"equal"`, or `"pretrends"`. `"zero"` tests H0: all ATETs = 0;
 `"equal"` tests H0: all ATETs are equal; `"pretrends"` tests H0: all
 pre-treatment ATETs = 0 (parallel-trends pre-test, only valid for
-`type = "byexposure"`).
+`type = "byexposure"`).}
 
 \item{level}{Numeric in (0,1). Confidence level for printed CIs.}
 }
