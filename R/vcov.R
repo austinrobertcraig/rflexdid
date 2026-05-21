@@ -19,6 +19,18 @@
 # reproduce those values. We hand-roll because sandwich's lm methods treat
 # weights as aweights (different score function), which would not match
 # Stata for pweighted models.
+#
+# Implementation note: we never materialize the n x k_kept per-observation
+# score as a dense R matrix. On large n that allocation is what blows up
+# memory (an n=15M, k_kept~2500 design needs ~290 GB for the dense score).
+#
+# For cluster vcov we aggregate to G x k_kept via a sparse G x n indicator
+# matrix, then take V = crossprod(S_g %*% bread) -- PSD by construction.
+#
+# For robust vcov we cannot aggregate, so we compute meat = X' diag((u w)^2) X
+# as a sparse k_kept x k_kept crossprod and then form V = bread meat bread.
+# To guarantee numerical PSD (so summary()'s sqrt(diag(V)) never produces NaN),
+# we factor meat = R' R via Cholesky and compute V = crossprod(R %*% bread).
 
 #' @keywords internal
 #' @noRd
@@ -28,33 +40,37 @@ compute_vcov <- function(X, residuals, weights, pivot_keep, rank,
   vcov_type <- match.arg(vcov_type)
   n <- nrow(X)
   k <- rank
-  # X may be a sparse matrix; restrict to kept columns and densify only the
-  # score matrix (n x k_kept), which is dense in general.
   X_kept <- X[, pivot_keep, drop = FALSE]
   u <- as.numeric(residuals)
   w <- as.numeric(weights)
+  unweighted <- all(w == 1)
 
-  if (all(w == 1)) {
-    score_i <- as.matrix(X_kept * u)        # n x k_kept; rows are X_i u_i
-  } else {
-    score_i <- as.matrix(X_kept * (u * w))  # rows are w_i X_i u_i
-  }
+  # Row-scale X by the score weight; stays sparse if X_kept is sparse.
+  score_sparse <- if (unweighted) X_kept * u else X_kept * (u * w)
 
-  # Bread: (X' W X)^{-1}. If the caller supplied it (flexdid() does), reuse;
-  # otherwise factor X' W X here.
+  # Bread: (X' W X)^{-1}. flexdid() always supplies this; the recompute
+  # branch is only for callers that build a vcov by hand.
   if (is.null(bread)) {
-    bread_inv <- if (all(w == 1)) crossprod(X_kept) else crossprod(X_kept * sqrt(w))
+    bread_inv <- if (unweighted) Matrix::crossprod(X_kept) else
+                                 Matrix::crossprod(X_kept * sqrt(w))
     bread <- chol2inv(chol(as.matrix(bread_inv)))
   }
 
-  # The sandwich V = bread' (S' S) bread = (S bread)' (S bread) where S is the
-  # row-stack of score contributions (per-obs for HC1, per-cluster for CR1).
-  # Computing it as M' M with M = S bread costs O(rows(S) p^2) instead of the
-  # 2 p^3 that the textbook bread %*% meat %*% bread forces -- a big win when
-  # the number of clusters G << p_kept.
   if (vcov_type == "robust") {
-    S_mat <- score_i
+    # meat = sum_i (w_i u_i)^2 X_i X_i' as a sparse k_kept x k_kept crossprod.
+    # Factor meat = R' R so V = bread meat bread = crossprod(R %*% bread),
+    # which is PSD by construction at floating-point precision.
+    meat <- as.matrix(Matrix::crossprod(score_sparse))
+    meat <- (meat + t(meat)) / 2
+    # Tiny ridge guards Cholesky against rank deficiency in meat (e.g. when
+    # u has many exact zeros). Scaled to meat's diagonal so it never moves
+    # the PD case at any meaningful precision.
+    diag_meat <- diag(meat)
+    ridge <- 1e-14 * max(c(abs(diag_meat), 1))
+    meat_chol <- chol(meat + ridge * diag(nrow(meat)))
+    M <- meat_chol %*% bread
     adj <- n / (n - k)
+    V <- adj * crossprod(M)
   } else {
     if (is.null(cluster)) {
       stop("Internal: cluster vector required for vcov_type = 'cluster'.",
@@ -65,11 +81,20 @@ compute_vcov <- function(X, residuals, weights, pivot_keep, rank,
     if (G < 2L) {
       stop("Cluster variable has fewer than 2 unique values.", call. = FALSE)
     }
-    S_mat <- rowsum(score_i, group = cluster_f, reorder = FALSE)
+    # Sparse cluster aggregator: row g of cluster_agg selects obs in cluster g.
+    # cluster_agg %*% score_sparse forms per-cluster score sums directly,
+    # avoiding the n x k_kept dense intermediate the rowsum() path required.
+    cluster_agg <- Matrix::sparseMatrix(
+      i = as.integer(cluster_f),
+      j = seq_len(n),
+      x = rep(1, n),
+      dims = c(G, n)
+    )
+    S_mat <- as.matrix(cluster_agg %*% score_sparse)  # G x k_kept dense
+    M <- S_mat %*% bread
     adj <- (G / (G - 1)) * ((n - 1) / (n - k))
+    V <- adj * crossprod(M)
   }
-  M <- S_mat %*% bread
-  V <- adj * crossprod(M)
   # Symmetrize against tiny numerical asymmetry from the matrix products.
   V <- (V + t(V)) / 2
   V

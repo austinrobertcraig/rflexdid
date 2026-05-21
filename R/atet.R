@@ -205,49 +205,96 @@ atet <- function(model,
     }
   }
 
-  # ---- Influence functions.
-  # Score (per observation, on kept cols): w_i X_i u_i. X_kept stays sparse;
-  # only the final IF_param product is densified.
+  # ---- Influence-function variance.
+  # The IF for obs i, level l decomposes into a parameter piece and a subpop
+  # piece (see file header). The parameter piece is (score %*% M) where
+  # M = bread %*% t(C); the subpop piece is nonzero only when i is in level l
+  # and equals (w_i / W_l) * (TE_i - ATET_l).
+  #
+  # Naively building IF as a dense n x L matrix and then rowsum/crossprod-ing
+  # blows up memory at large n (e.g. n=15M, L=20 -> 2.4 GB per copy). We
+  # never materialize n x L; instead we expand crossprod(IF) algebraically
+  # and aggregate sparsely through each piece.
   X_kept <- X[, pivot_keep, drop = FALSE]
   resid <- model$residuals
-  score <- X_kept * (resid * w_obs)  # n x p_kept; rows are w_i X_i u_i
+  score <- X_kept * (resid * w_obs)  # sparse n x p_kept; rows are w_i X_i u_i
 
   # Bread = (X' W X)^{-1}, computed once in flexdid() and stored on the model.
   # Older flexdid objects (or callers that hand-construct one) may lack it; in
-  # that case recompute here as a fallback.
+  # that case recompute here as a fallback. Keep the recompute sparse so the
+  # n x p_kept design is never densified.
   bread <- model$bread
   if (is.null(bread)) {
-    if (all(w_obs == 1)) {
-      bread_inv <- crossprod(as.matrix(X_kept))
-    } else {
-      bread_inv <- crossprod(as.matrix(X_kept) * sqrt(w_obs))
-    }
-    bread <- chol2inv(chol(bread_inv))
+    bread_inv <- if (all(w_obs == 1)) Matrix::crossprod(X_kept) else
+                                      Matrix::crossprod(X_kept * sqrt(w_obs))
+    bread <- chol2inv(chol(as.matrix(bread_inv)))
   }
 
-  # IF parameter piece: (n x L) = score (n x p_kept) %*% bread %*% t(C)
-  IF_param <- as.matrix(score %*% (bread %*% t(C)))
+  M <- bread %*% t(C)  # p_kept x L dense; L is small
 
-  # IF subpop piece: (n x L) where IF[i, l] = (w_i / W_{S_l}) * 1[i in S_l] * (TE_i - ATET_l)
-  IF_subpop <- matrix(0, nrow = n, ncol = L)
-  for (l in seq_len(L)) {
-    in_l <- !is.na(level_idx) & level_idx == l & subpop
-    if (W_per_level[l] <= 0) next
-    IF_subpop[in_l, l] <- (w_eff[in_l] / W_per_level[l]) * (TE[in_l] - ATET[l])
+  # Subpop influence weights per observation: tau_i = (w_i / W_{level(i)}) *
+  # (TE_i - ATET_{level(i)}) for i with valid level (W > 0); zero elsewhere.
+  active <- subpop & !is.na(level_idx)
+  if (any(active)) {
+    W_at_i <- W_per_level[level_idx[active]]
+    keep_active <- W_at_i > 0
+    rows_d <- which(active)[keep_active]
+    lvl_d <- level_idx[rows_d]
+    tau <- (w_eff[rows_d] / W_per_level[lvl_d]) * (TE[rows_d] - ATET[lvl_d])
+  } else {
+    rows_d <- integer(0)
+    lvl_d <- integer(0)
+    tau <- numeric(0)
   }
 
-  IF <- IF_param + IF_subpop
-
-  # ---- Variance via cluster/robust sandwich on IF.
   rank <- model$rank
   if (model$vcov_type == "cluster") {
     cluster_f <- as.factor(model$cluster_vec)
     G <- nlevels(cluster_f)
-    Psi_g <- rowsum(IF, group = cluster_f, reorder = FALSE)
+    cluster_idx <- as.integer(cluster_f)
+
+    # Psi_g_param[g, l] = sum_{i in cluster g} (score %*% M)[i, l]
+    # We aggregate score to per-cluster sums sparsely, then multiply by M.
+    cluster_agg <- Matrix::sparseMatrix(
+      i = cluster_idx, j = seq_len(n),
+      x = rep(1, n), dims = c(G, n)
+    )
+    score_g <- as.matrix(cluster_agg %*% score)  # G x p_kept dense
+    Psi_g <- score_g %*% M                       # G x L dense
+
+    # Psi_g_subpop[g, l] = sum_{i in cluster g, level l} tau_i.
+    if (length(rows_d) > 0L) {
+      Psi_g_subpop <- as.matrix(Matrix::sparseMatrix(
+        i = cluster_idx[rows_d],
+        j = lvl_d,
+        x = tau,
+        dims = c(G, L)
+      ))
+      Psi_g <- Psi_g + Psi_g_subpop
+    }
     meat <- crossprod(Psi_g)
     adj <- (G / (G - 1)) * ((n - 1) / (n - rank))
   } else {
-    meat <- crossprod(IF)
+    # crossprod(IF) = M' (score' score) M
+    #               + M' (score' D_subpop) + (M' (score' D_subpop))'
+    #               + diag(t_l) where t_l = sum_{i in level l} tau_i^2,
+    # since IF_subpop's columns have disjoint support (each obs in <=1 level).
+    meat_score <- as.matrix(Matrix::crossprod(score))  # p_kept x p_kept dense
+    cross_pp <- t(M) %*% meat_score %*% M              # L x L
+
+    if (length(rows_d) > 0L) {
+      D_subpop <- Matrix::sparseMatrix(
+        i = rows_d, j = lvl_d, x = tau, dims = c(n, L)
+      )
+      cross_ps_pkept <- as.matrix(Matrix::crossprod(score, D_subpop))  # p_kept x L
+      cross_ps <- t(M) %*% cross_ps_pkept                              # L x L
+      diag_ss <- numeric(L)
+      ss_by_lvl <- tapply(tau * tau, lvl_d, sum)
+      diag_ss[as.integer(names(ss_by_lvl))] <- as.numeric(ss_by_lvl)
+      meat <- cross_pp + cross_ps + t(cross_ps) + diag(diag_ss, nrow = L)
+    } else {
+      meat <- cross_pp
+    }
     adj <- n / (n - rank)
   }
   V_atet <- adj * meat
@@ -334,8 +381,7 @@ atet <- function(model,
     level_labels       = level_labels,
     level_values       = level_values,
     yvar               = model$yvar,
-    C                  = C,
-    IF                 = IF
+    C                  = C
   )
   class(out) <- "flexdid_atet"
   out

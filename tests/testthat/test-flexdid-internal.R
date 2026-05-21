@@ -127,6 +127,26 @@ test_that("atet Wald test uses pseudoinverse when clusters < ATET levels", {
   expect_lt(tr$df1, sum(!is.na(a$tidy_table[, "t value"])))  # df1 = rank < non-NA levels
 })
 
+test_that("rank-deficient design is fit via sparse drops, matches lm.fit", {
+  # Construct a genuinely column-rank-deficient design by including a
+  # duplicated covariate. The cell-x-covariate interaction block then has
+  # paired identical columns; previously this could fall through to the
+  # dense `lm.fit` fallback (which allocated `as.matrix(X)`). The new
+  # iterative-drop / pivoted-Gram path stays sparse and must still produce
+  # the same fitted values and RSS as `lm.fit`.
+  df <- make_panel()
+  df$x1_dup <- df$x1
+  fit <- flexdid(bmi ~ x1 + x1_dup, data = df, tx = "hhabit", group = "schools",
+                 time = "year", specification = "lagsonly", vcov = "robust")
+  p_total <- length(fit$coefficients)
+  expect_equal(sum(fit$pivot_keep), fit$rank)
+  expect_lt(fit$rank, p_total)
+  X_dense <- as.matrix(fit$X)
+  fit_lm  <- stats::lm.fit(X_dense, fit$y_in)
+  expect_equal(unname(fit$fitted), unname(fit_lm$fitted.values), tolerance = 1e-8)
+  expect_equal(sum(fit$residuals^2), sum(fit_lm$residuals^2), tolerance = 1e-8)
+})
+
 test_that("VCE robust matches a manual HC1 computation on a non-saturated fit", {
   # Use a panel where cells have more than one obs (combine schools into
   # cohort-level groups) so HC1 is well-defined without near-1 hat values.
