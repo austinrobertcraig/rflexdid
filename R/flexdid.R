@@ -183,6 +183,28 @@ flexdid <- function(formula,
     }
   }
 
+  # --- Outcome NA handling
+  # Match the auto-filter behavior used for tx/group/time/cluster/weights
+  # and covariates: drop rows with NA outcome and inform the user.
+  yvar_name <- as.character(formula[[2L]])
+  if (!yvar_name %in% names(data)) {
+    stop(sprintf("Outcome variable '%s' not found in data.", yvar_name),
+         call. = FALSE)
+  }
+  y_na <- is.na(data[[yvar_name]])
+  n_drop_y <- sum(use & y_na)
+  if (n_drop_y > 0L) {
+    message(sprintf(
+      "Note: dropped %d row(s) with NAs in outcome variable '%s'.",
+      n_drop_y, yvar_name
+    ))
+    use <- use & !y_na
+    if (!any(use)) {
+      stop(sprintf("All observations have NA outcome ('%s'); nothing left to fit.",
+                   yvar_name), call. = FALSE)
+    }
+  }
+
   # --- Cohort construction
   if (has_user_cohort) {
     if (!usercohort %in% names(data)) {
@@ -231,16 +253,7 @@ flexdid <- function(formula,
   # --- Build the design matrix on the in-sample rows
   data_in <- data[use, , drop = FALSE]
   rownames(data_in) <- NULL
-  yvar_name <- as.character(formula[[2L]])
-  if (!yvar_name %in% names(data_in)) {
-    stop(sprintf("Outcome variable '%s' not found in data.", yvar_name),
-         call. = FALSE)
-  }
   y_in <- as.numeric(data_in[[yvar_name]])
-  if (anyNA(y_in)) {
-    stop("Outcome variable contains NAs in the modeling sample. Drop them via `subset` or impute before calling flexdid().",
-         call. = FALSE)
-  }
 
   des <- build_design(
     data           = data_in,
