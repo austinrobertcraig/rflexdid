@@ -151,6 +151,22 @@ test_that("VCE robust matches a manual HC1 computation on a non-saturated fit", 
                tolerance = 1e-8)
 })
 
+test_that("flexdid() handles NAs in covariates by dropping affected rows", {
+  df <- make_panel()
+  set.seed(1)
+  df$x1_with_na <- df$x1
+  na_idx <- sample(which(df$hhabit == 1L), size = 20)
+  df$x1_with_na[na_idx] <- NA
+
+  expect_message(
+    fit <- flexdid(bmi ~ x1_with_na, data = df, tx = "hhabit",
+                   group = "schools", time = "year",
+                   specification = "lagsandleads", vcov = "cluster"),
+    "dropped 20 row\\(s\\) with NAs in covariates"
+  )
+  expect_equal(fit$nobs, nrow(df) - 20)
+})
+
 test_that("pretrends test restricts to pre-treatment periods and has correct label", {
   df  <- make_panel()
   fit <- flexdid(bmi ~ 1, data = df, tx = "hhabit", group = "schools",

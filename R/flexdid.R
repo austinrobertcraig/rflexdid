@@ -151,6 +151,38 @@ flexdid <- function(formula,
     cluster_vec <- NULL
   }
 
+  # --- Covariate NA handling
+  # model.matrix() in build_design() silently drops rows with NA covariates,
+  # which would misalign row indices used to slice xvars_mm. Pre-filter here
+  # so data_in already excludes those rows.
+  covar_cols <- all.vars(formula[[3L]])
+  if (!is.null(xnotinteracted)) {
+    xni_vars <- if (is.character(xnotinteracted)) {
+      xnotinteracted
+    } else if (inherits(xnotinteracted, "formula")) {
+      all.vars(xnotinteracted)
+    } else {
+      character(0)
+    }
+    covar_cols <- unique(c(covar_cols, xni_vars))
+  }
+  covar_cols <- intersect(covar_cols, names(data))
+  if (length(covar_cols) > 0L) {
+    covar_na <- Reduce(`|`, lapply(data[covar_cols], is.na))
+    n_drop <- sum(use & covar_na)
+    if (n_drop > 0L) {
+      message(sprintf(
+        "Note: dropped %d row(s) with NAs in covariates (%s).",
+        n_drop, paste(covar_cols, collapse = ", ")
+      ))
+      use <- use & !covar_na
+      if (!any(use)) {
+        stop("All observations have NA covariates; nothing left to fit.",
+             call. = FALSE)
+      }
+    }
+  }
+
   # --- Cohort construction
   if (has_user_cohort) {
     if (!usercohort %in% names(data)) {
