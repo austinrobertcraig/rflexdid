@@ -208,7 +208,13 @@ plot.flexdid_atet <- function(x, ...) {
   )
   ylab <- "Average treatment effect"
 
-  p <- ggplot2::ggplot(d, ggplot2::aes(x = .data[[".label_num"]],
+  if (x$type == "bygroup") {
+    d$.xvar <- factor(d$label, levels = d$label[order(d$.label_num)])
+  } else {
+    d$.xvar <- d$.label_num
+  }
+
+  p <- ggplot2::ggplot(d, ggplot2::aes(x = .data[[".xvar"]],
                                         y = .data[["Estimate"]]))
   if (x$type == "byexposure") {
     p <- p +
@@ -224,13 +230,19 @@ plot.flexdid_atet <- function(x, ...) {
                              width = 0.2) +
       ggplot2::geom_point()
   }
-  p +
+  p <- p +
     ggplot2::geom_hline(yintercept = 0, linetype = "dashed") +
-    ggplot2::labs(x = xlab, y = ylab) +
-    ggplot2::scale_x_continuous(
+    ggplot2::labs(x = xlab, y = ylab)
+  if (x$type == "bygroup") {
+    p <- p + ggplot2::scale_x_discrete()
+  } else {
+    p <- p + ggplot2::scale_x_continuous(
       breaks = unique(d$.label_num[!is.na(d$.label_num)])
-    ) +
-    ggplot2::theme_minimal()
+    )
+  }
+  p +
+    ggplot2::theme_bw() +
+    ggplot2::theme(panel.grid.minor = ggplot2::element_blank())
 }
 
 `%||%` <- function(a, b) if (is.null(a)) b else a
