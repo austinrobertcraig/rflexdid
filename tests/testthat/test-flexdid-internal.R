@@ -213,3 +213,41 @@ test_that("pretrends test restricts to pre-treatment periods and has correct lab
   expect_true(is.finite(tr$F))
   expect_true(is.finite(tr$p))
 })
+
+test_that("large-magnitude xnotinteracted does not collapse the fit (scale-invariant rank)", {
+  # Regression test for the scale-dependent pivot tolerance bug: a
+  # large-magnitude additive control inflated max(Dvec) in sparse_ols() so the
+  # relative threshold tol * max(|Dvec|) exceeded every dummy/intercept pivot,
+  # dropping them all -> rank 1, all-zero ATETs and SEs, silently. Column
+  # equilibration makes rank detection scale-invariant, so a covariate on the
+  # 1e2-1e4 scale must give the same full-rank fit (and same ATETs) as the
+  # /1000 rescaled version.
+  df <- make_panel()
+  set.seed(7)
+  df$big   <- runif(nrow(df), 1e2, 1e4)  # ~10^2-10^4, like annual_avg_estabs
+  df$small <- df$big / 1000
+
+  fit_big   <- flexdid(bmi ~ 1, data = df, tx = "hhabit", group = "schools",
+                       time = "year", specification = "lagsonly",
+                       xnotinteracted = "big", vcov = "robust")
+  fit_small <- flexdid(bmi ~ 1, data = df, tx = "hhabit", group = "schools",
+                       time = "year", specification = "lagsonly",
+                       xnotinteracted = "small", vcov = "robust")
+
+  # Rank must not collapse, and must be scale-invariant.
+  expect_gt(fit_big$rank, 1L)
+  expect_equal(fit_big$rank, fit_small$rank)
+
+  # ATETs must be real (non-zero, finite) and invariant to the covariate scale.
+  a_big   <- atet(fit_big, type = "overall")
+  a_small <- atet(fit_small, type = "overall")
+  expect_true(is.finite(a_big$estimate))
+  expect_gt(abs(a_big$estimate), 0)
+  expect_gt(a_big$tidy_table[, "Std. Error"], 0)
+  expect_equal(unname(a_big$estimate), unname(a_small$estimate), tolerance = 1e-6)
+
+  # Fitted values / RSS match lm.fit on the dense kept design.
+  X_dense <- as.matrix(fit_big$X[, fit_big$pivot_keep, drop = FALSE])
+  fit_lm  <- stats::lm.fit(X_dense, fit_big$y_in)
+  expect_equal(unname(fit_big$fitted), unname(fit_lm$fitted.values), tolerance = 1e-6)
+})

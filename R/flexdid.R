@@ -281,6 +281,25 @@ flexdid <- function(formula,
   bread_kept <- fit$bread
   rank <- sum(pivot_keep)
   k_total <- length(beta)
+
+  # Defense-in-depth: a healthy flexdid fit drops only redundant interaction
+  # columns (cell indicators are well-identified by construction). Dropping the
+  # overwhelming majority of non-intercept columns is pathological -- almost
+  # always a covariate-scaling problem that the equilibration in sparse_ols()
+  # would otherwise mask. Warn loudly rather than return silent zeros.
+  noint_cols <- setdiff(seq_len(k_total), des$block_index$intercept)
+  n_noint <- length(noint_cols)
+  n_dropped_noint <- sum(!pivot_keep[noint_cols])
+  if (n_noint > 0L && n_dropped_noint > 0.9 * n_noint) {
+    warning(sprintf(
+      paste0("Fit dropped %d of %d non-intercept columns as rank-deficient ",
+             "(rank = %d). This usually means the design is severely ",
+             "collinear; check for an additive covariate on an extreme scale ",
+             "(e.g. an `xnotinteracted` control) and consider centering/scaling ",
+             "it. Estimates and standard errors for dropped terms are 0."),
+      n_dropped_noint, n_noint, rank), call. = FALSE)
+  }
+
   # Stata / lm.fit convention: dropped columns get coefficient 0 (not NA) so
   # downstream uses (fitted values, ATET aggregation) sum cleanly. pivot_keep
   # still records which columns the OLS solution actually identifies.

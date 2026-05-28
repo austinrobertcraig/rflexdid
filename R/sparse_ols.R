@@ -53,14 +53,33 @@ sparse_ols <- function(X, y, w, tol = 1e-7, max_iter = 6L) {
     }
   }
 
+  # Column-equilibration scaling: s_j = 1/sqrt(diag(X'WX)_j). Scaling the Gram
+  # to a unit diagonal (G_tilde = S G S) makes the rank-revealing pivot
+  # threshold scale-invariant, so a large-magnitude covariate can no longer
+  # swamp the dummy/intercept pivots. Entirely-zero columns (diag 0) keep
+  # s = 1 so their pivot stays 0 and is still caught as rank-deficient,
+  # avoiding 1/sqrt(0) = Inf.
+  equilibrate_scale <- function(XtX) {
+    d <- Matrix::diag(XtX)
+    ifelse(d > 0, 1 / sqrt(d), 1)
+  }
+
   finish <- function(pivot_keep, ne) {
     # ne is the normal-equations object on the kept submatrix and is known
     # to be (numerically) PD here. Factor without the ridge so beta and
-    # bread reflect the unperturbed system.
+    # bread reflect the unperturbed system. We solve the equilibrated system
+    # G_tilde z = S Xty (with S = diag(s)) and map back: beta = S z and
+    # bread = G^{-1} = S G_tilde^{-1} S = outer(s, s) * G_tilde^{-1}. This is
+    # algebraically exact, so compute_vcov() / atet() still get the true bread.
     p_kept <- sum(pivot_keep)
-    ch <- Matrix::Cholesky(ne$XtX, perm = TRUE, LDL = TRUE)
-    beta_kept <- as.numeric(Matrix::solve(ch, ne$Xty))
-    bread <- as.matrix(Matrix::solve(ch, Matrix::Diagonal(p_kept)))
+    s <- equilibrate_scale(ne$XtX)
+    S <- Matrix::Diagonal(x = s)
+    XtX_tilde <- S %*% ne$XtX %*% S
+    ch <- Matrix::Cholesky(XtX_tilde, perm = TRUE, LDL = TRUE)
+    z <- as.numeric(Matrix::solve(ch, s * ne$Xty))
+    beta_kept <- s * z
+    bread_tilde <- as.matrix(Matrix::solve(ch, Matrix::Diagonal(p_kept)))
+    bread <- outer(s, s) * bread_tilde
     bread <- (bread + t(bread)) / 2
     beta <- rep(NA_real_, p)
     beta[pivot_keep] <- beta_kept
@@ -74,18 +93,26 @@ sparse_ols <- function(X, y, w, tol = 1e-7, max_iter = 6L) {
     X_kept <- if (p_kept == p) X else X[, pivot_keep, drop = FALSE]
     ne <- build_normal(X_kept)
 
+    # Equilibrate the Gram to a unit diagonal before factoring so the pivot
+    # threshold below is scale-invariant (see equilibrate_scale()).
+    s <- equilibrate_scale(ne$XtX)
+    S <- Matrix::Diagonal(x = s)
+    XtX_tilde <- S %*% ne$XtX %*% S
+
     # CHOLMOD's Cholesky bails out on an *exact* zero leading principal minor
     # even with LDL=TRUE -- the README example with three covariates trips it.
     # A tiny relative ridge perturbs those exact zeros into detectably-small
     # pivots that we then flag and drop in the rank-revealing step. The ridge
-    # is small enough (~1e-12 * max diag) not to move kept-coefficient values.
-    diag_max <- max(Matrix::diag(ne$XtX))
+    # is small enough (~1e-12 * max diag, now ~1 after equilibration) not to
+    # move kept-coefficient values.
+    diag_max <- max(Matrix::diag(XtX_tilde))
     ridge <- if (diag_max > 0) 1e-12 * diag_max else 1e-12
-    XtX_reg <- ne$XtX + ridge * Matrix::Diagonal(p_kept)
+    XtX_reg <- XtX_tilde + ridge * Matrix::Diagonal(p_kept)
     ch <- Matrix::Cholesky(XtX_reg, perm = TRUE, LDL = TRUE)
     Dvec <- as.numeric(Matrix::diag(Matrix::expand1(ch, "D")))
-    # tol scales by the largest pivot. Anything below counts as a
-    # rank-deficient column relative to the overall design magnitude.
+    # tol scales by the largest pivot. After equilibration the diagonal is ~1,
+    # so this is scale-invariant: anything below counts as a rank-deficient
+    # column relative to the (now uniform) design magnitude.
     Dthr <- tol * max(abs(Dvec))
     zero_pos <- which(Dvec <= Dthr)
 
@@ -108,7 +135,11 @@ sparse_ols <- function(X, y, w, tol = 1e-7, max_iter = 6L) {
   p_kept <- sum(pivot_keep)
   X_kept <- X[, pivot_keep, drop = FALSE]
   ne <- build_normal(X_kept)
-  Gram <- as.matrix(ne$XtX)
+  # Equilibrate here too so pivoted-Cholesky's relative rank cutoff is
+  # scale-invariant. Diagonal scaling does not change which columns are
+  # linearly dependent, so the dropped-column indices map back unchanged.
+  s <- equilibrate_scale(ne$XtX)
+  Gram <- as.matrix(ne$XtX) * outer(s, s)
   Gram <- (Gram + t(Gram)) / 2
   R_piv <- suppressWarnings(chol(Gram, pivot = TRUE))
   r <- attr(R_piv, "rank")
